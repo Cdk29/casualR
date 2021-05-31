@@ -1,0 +1,20 @@
+{
+  "articles": [
+    {
+      "path": "about.html",
+      "title": "About this blog",
+      "description": "This blog is a place were I gather and share some really specific tutorials related to R. It has been built using the distill package.",
+      "author": [],
+      "contents": "\n\n\n\n",
+      "last_modified": "2021-05-31T14:21:54+02:00"
+    },
+    {
+      "path": "index.html",
+      "title": "casualR",
+      "author": [],
+      "contents": "\n\n\n\n",
+      "last_modified": "2021-05-31T14:15:42+02:00"
+    }
+  ],
+  "collections": ["posts/posts.json"]
+}

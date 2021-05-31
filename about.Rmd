@@ -1,0 +1,9 @@
+---
+title: "About this blog"
+description: |
+  This blog is a place were I gather and share some really specific tutorials related to R built using the distill package.
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
