@@ -4,7 +4,8 @@ description: |
   Welcome to my new blog, casualR. I hope you will find some useful content !
 author:
   - name: Etienne Rolland
-    #url: https://example.com/norajones
+    url: https://github.com/Cdk29
+    orcid_id: 0000-0002-0980-4318
     #affiliation: Spacely Sprockets
     #affiliation_url: https://example.com/spacelysprokets
 date: 05-31-2021
@@ -35,7 +36,7 @@ While this tool is a prototype, it has a small benchmark to evaluate its perform
 
 ### Requirement
 
-To extract the information on the fonts inside the pdf we use Poppler, the [PDF rendering library](https://poppler.freedesktop.org/) and its cpp API. 
+To extract the informations on the fonts inside the pdf we use Poppler, the [PDF rendering library](https://poppler.freedesktop.org/) and its cpp API. 
 SegmenteR require a **version of poppler >= 0.89** as well as a recent version of pdftools. The dev version of pdftools integrate the required change, but you need to install it from github :
 
 ```{r}
@@ -53,6 +54,7 @@ Download an open access article that was part of the corpus :
 url <- ('https://www.cell.com/action/showPdf?pii=S1525-0016%2816%2931594-5')
 download.file(url, 'Abrams, M T et al 2010.pdf')
 ```
+We need a model and from the [library udpipe](https://bnosac.github.io/udpipe/en/) to tokenize and annotate the text :
 
 ```{r}
 ## got the model for annotation
@@ -62,7 +64,7 @@ str(dl)
 
 ```{r}
 model <- udpipe::udpipe_load_model(file = dl$file_model)
-model
+#model
 ```
 
 
@@ -79,7 +81,7 @@ material_and_methods <- segmenteR::extract_section_from_pdf(pdf_name="Abrams, M 
 
 head(unique(material_and_methods$sentence))
 ```
-And Shazam, you have (hopefully) your material and methods section in ConLL-U format inside the dataframe material_and_methods, a format suitable for parsing, etc.
+And shazam, you have (hopefully) your material and methods section in ConLL-U format inside the dataframe material_and_methods, a format suitable for parsing, etc.
 You can stop reading this blog entry here.
 
 #### A more in-depth example
@@ -94,15 +96,15 @@ txt_pdf <- tabulizer::extract_text(pdf_name) # read the text from the pdf
 txt_pdf <- segmenteR::preprocess_article_txt(txt_pdf)
 ```
 
-The role of the function annotate_txt_pdf() is to load the required model and use the library udpipe to tokenize and annotate the text. Please refer to the vignette or the [excellent website](https://bnosac.github.io/udpipe/en/) of udipipe to get more details on the Conll-U format.
-The reason behind this annotation is that we will need this information to estimate where the most likely is the section title. For example, if it is the first word of a sentence, if the the word of the sentence is also a section title, etc.
+The role of the function annotate_txt_pdf() is to load the required model and use the library udpipe to tokenize and annotate the text. Please refer to the vignette or the [excellent website](https://bnosac.github.io/udpipe/en/) of udpipe to get more details on the Conll-U format.
+The reason for this annotation is that we will need it to estimate where the section titles are the most likely placed. For example, if it is the first word of a sentence, if the the word of the sentence is also a section title, etc, it is probably a section title.
 
 ```{r}
 conllu_df <- segmenteR::annotate_txt_pdf(txt_pdf, udpipe_model=model ) # create the dataframe for NLP using udpipe
 head(conllu_df)
 ```
 
-The other information we use, and the reason why we work directly on a pdf instead of a text, is the fonts information from the pdf, the font and the fontsize of the words inside the pdf. To do this we use poppler, a [PDF rendering library](https://poppler.freedesktop.org/) and the cpp API of poppler. We extract this information using a specific version of pdftools, reason why the package need a version of poppler > 0.89 as well as a recent version of pdftools. 
+The other informations we use, and the reason why we work directly on a pdf instead of a text, is the fonts information from the pdf, the font and the fontsize of the words inside the pdf. To do this we use poppler, a [PDF rendering library](https://poppler.freedesktop.org/) and the cpp API of poppler. We extract this informations using a specific version of pdftools, reason why the package need a version of poppler > 0.89 as well as a recent version of pdftools. 
 
 ```{r}
 poppler_output <- segmenteR::prepare_poppler_output(pdf_name)
@@ -110,7 +112,7 @@ head(poppler_output)
 
 ```
 
-This information is used to identify the probable font of the section, by first looking at the font used for the words Reference and Acknowledgment, that usually appear in only one occurrence in scientific articles :
+This informations is used to identify the probable font of the section, by first looking at the font used for the words Reference and Acknowledgment, that usually appear in only one occurrence in scientific articles :
 
 ```{r}
 font_section <- segmenteR::identify_font(poppler_output)
@@ -139,14 +141,14 @@ list_of_sections <- list(
     c("Section", "SECTION")
   )
 ```
-Clean_font_txt() remove the most common font inside the articles, which improve the correct localization of the sections inside the pdf by create_section_title_df().
+Clean_font_txt() remove the most common font inside the articles, which improve the correct localization of the sections by create_section_title_df() inside the pdf.
 
 ```{r}
 poppler_output <- segmenteR::clean_font_txt(poppler_output)
 head(poppler_output)
 ```
 
-Section_title_df is a dataframe with that contain the section titles in the articles and their relative order, based on the fonts information retrieved from the pdf. This information (order and existence) will be used to localize the section in the ConLL-U format. This step is needed as the order and the composition of the sections title can change from one article to the other.
+Section_title_df is a dataframe that contain the section titles in the article and their relative order, based on the fonts information retrieved from the pdf. This informations (order and existence) will be used to localize the section in the ConLL-U format. This step is needed as the order and the composition of the sections title can change from one article to the other.
 
 ```{r}
 section_title_df <- segmenteR::create_section_title_df(font_section, list_of_sections, poppler_output)
@@ -164,12 +166,13 @@ if (remove_bibliography == TRUE) {
 }
 ```
 
-Knowing the relative order of the sections from one side, their names and the information from the Conll-U dataframe (position inside the sentence, or the other words in the sentence) we can estimate the position of the different sections inside the Conll-U dataframe.
+Knowing the relative order of the sections from one side, their names and the informations from the Conll-U dataframe (position inside the sentence, or the other words in the sentence) we can estimate the position of the different sections inside the Conll-U dataframe.
 Please note that the positions_sections_df is not the section_title_df, since section_title_df refer to the position inside the output from poppler, while section_title_df indicate the position inside the Conll-U dataframe.
 
 ```{r}
 positions_sections_df <- segmenteR::locate_sections_position_in_conllu(conllu_df, section_title_df)
 segmenteR::check_sections_df(positions_sections_df)
+head(positions_sections_df)
 ```
 
 ```{r}
@@ -185,7 +188,7 @@ Don't use it on an article of two pages. Ever.
 
 ## Github repository
  
-More seriously, the extraction will fail on article of one or two pages, because of a function that remove sections names that have the same number of occurences than the numbers of pages, since some journals have names including "Materials", or "Results".
+More seriously, the extraction will fail on article of one or two pages, because of a function that remove sections names that have the same number of occurences than the numbers of pages, since some journals have names including "Materials", or "Results", wrote in the exact same fonts that the one of the sections titles. It would be something to improve in the definitive version of the package.
 
-If you tried this package for your project, by curiosity and have some comments or question, or if it does not work on your favorite article, feel free to open an issue on [the github repository of the projet](https://github.com/ec-jrc/jrc_f2_refine), I would be glad to take a look it.
+If you try this package for your project, by curiosity and have some comments or question, or if it does not work on your favorite article, feel free to open an issue on [the github repository of the projet](https://github.com/ec-jrc/jrc_f2_refine), I would be glad to take a look it.
 

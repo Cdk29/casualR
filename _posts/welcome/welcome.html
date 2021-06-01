@@ -110,7 +110,7 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
   <!--radix_placeholder_rmarkdown_metadata-->
 
   <script type="text/json" id="radix-rmarkdown-metadata">
-  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output"]}},"value":[{"type":"character","attributes":{},"value":["segmenteR, a small tool to segment a scientific article"]},{"type":"character","attributes":{},"value":["Welcome to my new blog, casualR. I hope you will find some useful content !\n"]},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name"]}},"value":[{"type":"character","attributes":{},"value":["Etienne Rolland"]}]}]},{"type":"character","attributes":{},"value":["05-31-2021"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["distill::distill_article"]}},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["self_contained"]}},"value":[{"type":"logical","attributes":{},"value":[false]}]}]}]}
+  {"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["title","description","author","date","output"]}},"value":[{"type":"character","attributes":{},"value":["segmenteR, a small tool to segment a scientific article"]},{"type":"character","attributes":{},"value":["Welcome to my new blog, casualR. I hope you will find some useful content !\n"]},{"type":"list","attributes":{},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["name","url","orcid_id"]}},"value":[{"type":"character","attributes":{},"value":["Etienne Rolland"]},{"type":"character","attributes":{},"value":["https://github.com/Cdk29"]},{"type":"character","attributes":{},"value":["0000-0002-0980-4318"]}]}]},{"type":"character","attributes":{},"value":["05-31-2021"]},{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["distill::distill_article"]}},"value":[{"type":"list","attributes":{"names":{"type":"character","attributes":{},"value":["self_contained"]}},"value":[{"type":"logical","attributes":{},"value":[false]}]}]}]}
   </script>
   <!--/radix_placeholder_rmarkdown_metadata-->
   
@@ -1454,7 +1454,7 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
 <!--radix_placeholder_front_matter-->
 
 <script id="distill-front-matter" type="text/json">
-{"title":"segmenteR, a small tool to segment a scientific article","description":"Welcome to my new blog, casualR. I hope you will find some useful content !","authors":[{"author":"Etienne Rolland","authorURL":"#","affiliation":"&nbsp;","affiliationURL":"#","orcidID":""}],"publishedDate":"2021-05-31T00:00:00.000+02:00","citationText":"Rolland, 2021"}
+{"title":"segmenteR, a small tool to segment a scientific article","description":"Welcome to my new blog, casualR. I hope you will find some useful content !","authors":[{"author":"Etienne Rolland","authorURL":"https://github.com/Cdk29","affiliation":"&nbsp;","affiliationURL":"#","orcidID":"0000-0002-0980-4318"}],"publishedDate":"2021-05-31T00:00:00.000+02:00","citationText":"Rolland, 2021"}
 </script>
 
 <!--/radix_placeholder_front_matter-->
@@ -1471,7 +1471,7 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
 </div>
 
 <div class="d-byline">
-  Etienne Rolland  
+  Etienne Rolland <a href="https://github.com/Cdk29" class="uri">https://github.com/Cdk29</a> 
   
 <br/>05-31-2021
 </div>
@@ -1484,7 +1484,7 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
 <p>We needed to extract both the material and methods section and the results section of each articles, to evaluate the quality of the reporting inside each articles and parse the texts for specific toxicity effects. The work has been published in the Journal of Applied Toxicology, <em>Toxicity effects of nanomaterials for health applications: how automation can support systematic review of the literature ? Blanka Halamoda-Kenzaoui, Etienne Rolland, Jacopo Piovesan, Antonio Puertas Gallardo, Susanne Bremer-Hoffmann</em> <a href="https://doi.org/10.1002/jat.4204">doi.org/10.1002/jat.4204</a>.</p>
 <p>While this tool is a prototype, it has a small benchmark to evaluate its performances, as shown inside the article.</p>
 <h3 id="requirement">Requirement</h3>
-<p>To extract the information on the fonts inside the pdf we use Poppler, the <a href="https://poppler.freedesktop.org/">PDF rendering library</a> and its cpp API. SegmenteR require a <strong>version of poppler &gt;= 0.89</strong> as well as a recent version of pdftools. The dev version of pdftools integrate the required change, but you need to install it from github :</p>
+<p>To extract the informations on the fonts inside the pdf we use Poppler, the <a href="https://poppler.freedesktop.org/">PDF rendering library</a> and its cpp API. SegmenteR require a <strong>version of poppler &gt;= 0.89</strong> as well as a recent version of pdftools. The dev version of pdftools integrate the required change, but you need to install it from github :</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='fu'>devtools</span><span class='fu'>::</span><span class='fu'><a href='https://devtools.r-lib.org//reference/remote-reexports.html'>install_github</a></span><span class='op'>(</span><span class='st'>"ropensci/pdftools"</span><span class='op'>)</span> 
@@ -1502,6 +1502,7 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
 </code></pre>
 </div>
 </div>
+<p>We need a model and from the <a href="https://bnosac.github.io/udpipe/en/">library udpipe</a> to tokenize and annotate the text :</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='co'>## got the model for annotation</span>
@@ -1519,17 +1520,9 @@ code span.wa { color: #5e5e5e; font-style: italic; } /* Warning */
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>model</span> <span class='op'>&lt;-</span> <span class='fu'>udpipe</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/udpipe/man/udpipe_load_model.html'>udpipe_load_model</a></span><span class='op'>(</span>file <span class='op'>=</span> <span class='va'>dl</span><span class='op'>$</span><span class='va'>file_model</span><span class='op'>)</span>
-<span class='va'>model</span>
+<span class='co'>#model</span>
 </code></pre>
 </div>
-<pre><code>$file
-[1] &quot;/home/erolland/Bureau/casualR/_posts/welcome/english-gum-ud-2.5-191206.udpipe&quot;
-
-$model
-&lt;pointer: 0x561a6d175cf0&gt;
-
-attr(,&quot;class&quot;)
-[1] &quot;udpipe_model&quot;</code></pre>
 </div>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
@@ -1553,7 +1546,7 @@ attr(,&quot;class&quot;)
 [5] &quot;Liposome assemblies, siRNAs, and reagents.&quot;                                                                                                                                                               
 [6] &quot;siRNA Lipid Nanoparticles were assembled using a process involving simultaneous mixing of the lipid mixture in an ethanol solution with an aqueous solution of siRNA, followed by stepwise diafiltration.&quot;</code></pre>
 </div>
-<p>And Shazam, you have (hopefully) your material and methods section in ConLL-U format inside the dataframe material_and_methods, a format suitable for parsing, etc. You can stop reading this blog entry here.</p>
+<p>And shazam, you have (hopefully) your material and methods section in ConLL-U format inside the dataframe material_and_methods, a format suitable for parsing, etc. You can stop reading this blog entry here.</p>
 <h4 id="a-more-in-depth-example">A more in-depth example</h4>
 <p>This example show the inner working of the function extract_section_from_pdf(), and some functions you made need :</p>
 <div class="layout-chunk" data-layout="l-body">
@@ -1566,7 +1559,7 @@ attr(,&quot;class&quot;)
 </code></pre>
 </div>
 </div>
-<p>The role of the function annotate_txt_pdf() is to load the required model and use the library udpipe to tokenize and annotate the text. Please refer to the vignette or the <a href="https://bnosac.github.io/udpipe/en/">excellent website</a> of udipipe to get more details on the Conll-U format. The reason behind this annotation is that we will need this information to estimate where the most likely is the section title. For example, if it is the first word of a sentence, if the the word of the sentence is also a section title, etc.</p>
+<p>The role of the function annotate_txt_pdf() is to load the required model and use the library udpipe to tokenize and annotate the text. Please refer to the vignette or the <a href="https://bnosac.github.io/udpipe/en/">excellent website</a> of udpipe to get more details on the Conll-U format. The reason for this annotation is that we will need it to estimate where the section titles are the most likely placed. For example, if it is the first word of a sentence, if the the word of the sentence is also a section title, etc, it is probably a section title.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>conllu_df</span> <span class='op'>&lt;-</span> <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/annotate_txt_pdf.html'>annotate_txt_pdf</a></span><span class='op'>(</span><span class='va'>txt_pdf</span>, udpipe_model<span class='op'>=</span><span class='va'>model</span> <span class='op'>)</span> <span class='co'># create the dataframe for NLP using udpipe</span>
@@ -1602,7 +1595,7 @@ attr(,&quot;class&quot;)
 5            13 compound &lt;NA&gt; &lt;NA&gt;
 6             7     case &lt;NA&gt; &lt;NA&gt;</code></pre>
 </div>
-<p>The other information we use, and the reason why we work directly on a pdf instead of a text, is the fonts information from the pdf, the font and the fontsize of the words inside the pdf. To do this we use poppler, a <a href="https://poppler.freedesktop.org/">PDF rendering library</a> and the cpp API of poppler. We extract this information using a specific version of pdftools, reason why the package need a version of poppler &gt; 0.89 as well as a recent version of pdftools.</p>
+<p>The other informations we use, and the reason why we work directly on a pdf instead of a text, is the fonts information from the pdf, the font and the fontsize of the words inside the pdf. To do this we use poppler, a <a href="https://poppler.freedesktop.org/">PDF rendering library</a> and the cpp API of poppler. We extract this informations using a specific version of pdftools, reason why the package need a version of poppler &gt; 0.89 as well as a recent version of pdftools.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>poppler_output</span> <span class='op'>&lt;-</span> <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/prepare_poppler_output.html'>prepare_poppler_output</a></span><span class='op'>(</span><span class='va'>pdf_name</span><span class='op'>)</span>
@@ -1617,7 +1610,7 @@ attr(,&quot;class&quot;)
 5       of AOJZVN+StoneSans  6.5
 6     Gene AOJZVN+StoneSans  6.5</code></pre>
 </div>
-<p>This information is used to identify the probable font of the section, by first looking at the font used for the words Reference and Acknowledgment, that usually appear in only one occurrence in scientific articles :</p>
+<p>This informations is used to identify the probable font of the section, by first looking at the font used for the words Reference and Acknowledgment, that usually appear in only one occurrence in scientific articles :</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>font_section</span> <span class='op'>&lt;-</span> <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/identify_font.html'>identify_font</a></span><span class='op'>(</span><span class='va'>poppler_output</span><span class='op'>)</span>
@@ -1650,7 +1643,7 @@ attr(,&quot;class&quot;)
 </code></pre>
 </div>
 </div>
-<p>Clean_font_txt() remove the most common font inside the articles, which improve the correct localization of the sections inside the pdf by create_section_title_df().</p>
+<p>Clean_font_txt() remove the most common font inside the articles, which improve the correct localization of the sections by create_section_title_df() inside the pdf.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>poppler_output</span> <span class='op'>&lt;-</span> <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/clean_font_txt.html'>clean_font_txt</a></span><span class='op'>(</span><span class='va'>poppler_output</span><span class='op'>)</span>
@@ -1665,7 +1658,7 @@ attr(,&quot;class&quot;)
 5       of AOJZVN+StoneSans  6.5
 6     Gene AOJZVN+StoneSans  6.5</code></pre>
 </div>
-<p>Section_title_df is a dataframe with that contain the section titles in the articles and their relative order, based on the fonts information retrieved from the pdf. This information (order and existence) will be used to localize the section in the ConLL-U format. This step is needed as the order and the composition of the sections title can change from one article to the other.</p>
+<p>Section_title_df is a dataframe that contain the section titles in the article and their relative order, based on the fonts information retrieved from the pdf. This informations (order and existence) will be used to localize the section in the ConLL-U format. This step is needed as the order and the composition of the sections title can change from one article to the other.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>section_title_df</span> <span class='op'>&lt;-</span> <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/create_section_title_df.html'>create_section_title_df</a></span><span class='op'>(</span><span class='va'>font_section</span>, <span class='va'>list_of_sections</span>, <span class='va'>poppler_output</span><span class='op'>)</span>
@@ -1692,13 +1685,20 @@ attr(,&quot;class&quot;)
 </code></pre>
 </div>
 </div>
-<p>Knowing the relative order of the sections from one side, their names and the information from the Conll-U dataframe (position inside the sentence, or the other words in the sentence) we can estimate the position of the different sections inside the Conll-U dataframe. Please note that the positions_sections_df is not the section_title_df, since section_title_df refer to the position inside the output from poppler, while section_title_df indicate the position inside the Conll-U dataframe.</p>
+<p>Knowing the relative order of the sections from one side, their names and the informations from the Conll-U dataframe (position inside the sentence, or the other words in the sentence) we can estimate the position of the different sections inside the Conll-U dataframe. Please note that the positions_sections_df is not the section_title_df, since section_title_df refer to the position inside the output from poppler, while section_title_df indicate the position inside the Conll-U dataframe.</p>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
 <pre class="sourceCode r"><code class="sourceCode r"><span class='va'>positions_sections_df</span> <span class='op'>&lt;-</span> <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/locate_sections_position_in_conllu.html'>locate_sections_position_in_conllu</a></span><span class='op'>(</span><span class='va'>conllu_df</span>, <span class='va'>section_title_df</span><span class='op'>)</span>
 <span class='fu'>segmenteR</span><span class='fu'>::</span><span class='fu'><a href='https://rdrr.io/pkg/segmenteR/man/check_sections_df.html'>check_sections_df</a></span><span class='op'>(</span><span class='va'>positions_sections_df</span><span class='op'>)</span>
+<span class='fu'><a href='https://rdrr.io/r/utils/head.html'>head</a></span><span class='op'>(</span><span class='va'>positions_sections_df</span><span class='op'>)</span>
 </code></pre>
 </div>
+<pre><code>                section occurrences
+1          Introduction         239
+2               Results        1173
+3            Discussion        6295
+4 Materials and Methods        7563
+6       Acknowledgments        8769</code></pre>
 </div>
 <div class="layout-chunk" data-layout="l-body">
 <div class="sourceCode">
@@ -1717,8 +1717,8 @@ attr(,&quot;class&quot;)
 <h2 id="known-gotchas">Known Gotchas</h2>
 <p>Don’t use it on an article of two pages. Ever.</p>
 <h2 id="github-repository">Github repository</h2>
-<p>More seriously, the extraction will fail on article of one or two pages, because of a function that remove sections names that have the same number of occurences than the numbers of pages, since some journals have names including “Materials”, or “Results”.</p>
-<p>If you tried this package for your project, by curiosity and have some comments or question, or if it does not work on your favorite article, feel free to open an issue on <a href="https://github.com/ec-jrc/jrc_f2_refine">the github repository of the projet</a>, I would be glad to take a look it.</p>
+<p>More seriously, the extraction will fail on article of one or two pages, because of a function that remove sections names that have the same number of occurences than the numbers of pages, since some journals have names including “Materials”, or “Results”, wrote in the exact same fonts that the one of the sections titles. It would be something to improve in the definitive version of the package.</p>
+<p>If you try this package for your project, by curiosity and have some comments or question, or if it does not work on your favorite article, feel free to open an issue on <a href="https://github.com/ec-jrc/jrc_f2_refine">the github repository of the projet</a>, I would be glad to take a look it.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r distill-force-highlighting-css"><code class="sourceCode r"></code></pre></div>
 <!--radix_placeholder_article_footer-->
 <!--/radix_placeholder_article_footer-->
