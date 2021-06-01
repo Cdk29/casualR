@@ -1,7 +1,8 @@
 ---
 title: "About this blog"
 description: |
-  This blog is a place were I gather and share some really specific tutorials related to R built using the distill package.
+  Sometimes, we look without success for a tutorial on really specifics problems wrote in R, such as knowledge distillation or segmenting an article.
+  Here I share some of my solutions, so few other persons on earth can spare some times.
 ---
 
 ```{r setup, include=FALSE}

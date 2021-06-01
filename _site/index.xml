@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0">
+  <channel>
+    <title>casualR</title>
+    <link>https://casualr.netlify.app/</link>
+    <atom:link href="https://casualr.netlify.app/index.xml" rel="self" type="application/rss+xml"/>
+    <description>Really specifics solutions to really specifics problems I have encountered.
+</description>
+    <generator>Distill</generator>
+    <lastBuildDate>Mon, 31 May 2021 00:00:00 +0000</lastBuildDate>
+    <item>
+      <title>Untitled</title>
+      <dc:creator>Nora Jones</dc:creator>
+      <link>https://casualr.netlify.app/posts</link>
+      <description>A new article created using the Distill format.</description>
+      <guid>https://casualr.netlify.app/posts</guid>
+      <pubDate>Mon, 31 May 2021 00:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>
