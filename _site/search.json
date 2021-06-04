@@ -3,17 +3,17 @@
     {
       "path": "about.html",
       "title": "About this blog",
-      "description": "Sometimes, we look without success for a tutorial on really specifics problems wrote in R, such as knowledge distillation or segmenting an article.\nHere I share some of my solutions, so few other persons on earth can spare some times.",
+      "description": "Sometimes, we look without success for a tutorial on really specifics problems wrote in R, such as knowledge distillation or segmenting an article.\nHere I share some of my solutions, so few other persons on earth can spare some times.\n\nThis blog is meant to share code through r-bloggers, which I think is the main way used by R users to share content and communicate among them. If, by coincidence, you came to this blog without reaching it by r-bloggers, I invite you to take a look and subscrite to its daily feed there : https://www.r-bloggers.com/.",
       "author": [],
       "contents": "\n\n\n\n",
-      "last_modified": "2021-06-04T07:25:28+02:00"
+      "last_modified": "2021-06-04T08:26:36+02:00"
     },
     {
       "path": "index.html",
       "title": "casualR",
       "author": [],
       "contents": "\n\n\n\n",
-      "last_modified": "2021-06-04T07:25:29+02:00"
+      "last_modified": "2021-06-04T08:25:21+02:00"
     }
   ],
   "collections": ["posts/posts.json"]

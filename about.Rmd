@@ -3,6 +3,8 @@ title: "About this blog"
 description: |
   Sometimes, we look without success for a tutorial on really specifics problems wrote in R, such as knowledge distillation or segmenting an article.
   Here I share some of my solutions, so few other persons on earth can spare some times.
+  
+  This blog is meant to share code through r-bloggers, which I think is the main way used by R users to share content and communicate among them. If, by coincidence, you came to this blog without reaching it by r-bloggers, I invite you to take a look and subscrite to its daily feed there : https://www.r-bloggers.com/.
 ---
 
 ```{r setup, include=FALSE}
