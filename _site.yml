@@ -20,3 +20,4 @@ rss:
 collections:
   posts:
     citations: false
+    disqus: casualr
