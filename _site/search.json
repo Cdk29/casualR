@@ -6,14 +6,14 @@
       "description": "Sometimes, we look without success for a tutorial on really specifics problems wrote in R, such as knowledge distillation or segmenting an article.\nHere I share some of my solutions, so few other persons on earth can spare some times.",
       "author": [],
       "contents": "\n\n\n\n",
-      "last_modified": "2021-06-01T13:23:21+02:00"
+      "last_modified": "2021-06-04T07:12:35+02:00"
     },
     {
       "path": "index.html",
       "title": "casualR",
       "author": [],
       "contents": "\n\n\n\n",
-      "last_modified": "2021-06-01T13:23:21+02:00"
+      "last_modified": "2021-06-04T07:12:35+02:00"
     }
   ],
   "collections": ["posts/posts.json"]

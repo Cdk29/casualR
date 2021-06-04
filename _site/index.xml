@@ -7,14 +7,15 @@
     <description>Really specifics solutions to really specifics problems I have encountered.
 </description>
     <generator>Distill</generator>
-    <lastBuildDate>Mon, 31 May 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 03 Jun 2021 00:00:00 +0000</lastBuildDate>
     <item>
-      <title>Untitled</title>
-      <dc:creator>Nora Jones</dc:creator>
+      <title>Knowledge distillation with R and tensorflow</title>
+      <dc:creator>Etienne Rolland</dc:creator>
       <link>https://casualr.netlify.app/posts</link>
-      <description>A new article created using the Distill format.</description>
+      <description>A quick tutorial on how to perform Knowledge distillation with R, in eager mode.</description>
       <guid>https://casualr.netlify.app/posts</guid>
-      <pubDate>Mon, 31 May 2021 00:00:00 +0000</pubDate>
+      <pubDate>Thu, 03 Jun 2021 00:00:00 +0000</pubDate>
+      <media:content url="https://casualr.netlify.app/posts/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
     </item>
   </channel>
 </rss>

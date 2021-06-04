@@ -1,3 +1,6 @@
 _posts/*/*.pdf
 .Rproj.user
 english-gum-ud-2.5-191206.udpipe
+_posts/cassava-leaf-disease-classification/*
+_posts/fine_tuned_eff_net_weights.15.hdf5
+_site/posts/cassava-leaf-disease-classification/*
