@@ -1,6 +1,6 @@
 name: "casualR"
 title: "casualR"
-description: |
+description: 
   Really specifics solutions to really specifics problems I have encountered.
 output_dir: "_site"
 base_url: https://casualr.netlify.app/
@@ -16,4 +16,7 @@ navbar:
       href: https://github.com/Cdk29
 output: distill::distill_article
 rss:
-  full_content: TRUE
+  full_content: true 
+collections:
+  posts:
+    citations: false
