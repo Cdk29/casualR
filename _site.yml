@@ -19,5 +19,6 @@ rss:
   full_content: true 
 collections:
   posts:
+    feed_items_max: 1
     citations: false
     disqus: casualr

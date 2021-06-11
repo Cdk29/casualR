@@ -6,493 +6,185 @@
     <atom:link href="https://casualr.netlify.app/index.xml" rel="self" type="application/rss+xml"/>
     <description>Really specifics solutions to really specifics problems I have encountered.</description>
     <generator>Distill</generator>
-    <lastBuildDate>Thu, 03 Jun 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Thu, 10 Jun 2021 00:00:00 +0000</lastBuildDate>
     <item>
-      <title>Knowledge distillation with R and tensorflow</title>
+      <title>segmenteR, a small tool to segment a scientific article</title>
       <dc:creator>Etienne Rolland</dc:creator>
-      <link>https://casualr.netlify.app/posts/Knowledge_distillation_post</link>
+      <link>https://casualr.netlify.app/posts/segmenteR_post</link>
       <description>
 
 
-&lt;pre class="r"&gt;&lt;code&gt;knitr::opts_chunk$set(echo = TRUE)&lt;/code&gt;&lt;/pre&gt;
-&lt;h1 id="welcome"&gt;Welcome&lt;/h1&gt;
-&lt;p&gt;Hi everyone ! Welcome to my blog. Here I will just share some tutorials around things that were complicated for me, and for which others R users could be interested. Not surprisingly, lot of this tutorials will involve tensorflow or other deep learning things.&lt;/p&gt;
-&lt;p&gt;Sometimes things are possible in R, but, since our community is smaller, we don’t have that many resources or tutorials compared to the python community, explaining why it is cubersome to do some particuliar tasks in R, especially when the few tutorials available or interfaces packages start accumulate errors or bugs because they are not used often by an active community.&lt;/p&gt;
-&lt;p&gt;I am not an expert, so I will try to source at maximum of my codes, or parameters when I can. I used a small size for the images to not blow my GPU, there is an example with fine tuning and a bigger GPU &lt;a href="https://www.kaggle.com/cdk292/knowledge-distillation-with-r-and-keras-tf"&gt;here&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;There is probably a lack of optimization, but at least it is a working skeleton. If you have suggestion for improvement, comments are welcome :D&lt;/p&gt;
-&lt;h2 id="about-the-data"&gt;About the data&lt;/h2&gt;
-&lt;p&gt;I wrote this code in the first place in the context of the &lt;a href="https://www.kaggle.com/c/cassava-leaf-disease-classification"&gt;Cassava Leaf Disease Classification&lt;/a&gt;, a Kaggle’s competition where the goal was to train a model to identify the disease on leafs of cassava. Here the distillation is made from an Efficientnet0 to an other one.&lt;/p&gt;
-&lt;h1 id="what-is-knowledge-distillation"&gt;What is knowledge distillation&lt;/h1&gt;
-&lt;p&gt;As presented &lt;a href="https://www.kaggle.com/c/cassava-leaf-disease-classification/discussion/214959"&gt;in this discussion thread on kaggle&lt;/a&gt;, knowledge distillation is defined as &lt;em&gt;simply trains another individual model to match the output of an ensemble.&lt;/em&gt; &lt;a href="https://www.microsoft.com/en-us/research/blog/three-mysteries-in-deep-learning-ensemble-knowledge-distillation-and-self-distillation/"&gt;Source&lt;/a&gt;. It is in fact slightly more complicated : the second neural net (student) will made predictions on the images, but then, the losses will be a function of its own loss as well as a loss based on the difference between his prediction and the one of its teacher or the ensemble.&lt;/p&gt;
-&lt;p&gt;This approach allow to compress an ensemble into one model and by then reduce the inference time, or, if trained to match the output of a model, to increase the overall performance of the model. I discover this approach by looking at the top solutions of the Plant Pathology 2020 competition, an other solution with computer vision and leaf, such as &lt;a href="https://www.kaggle.com/c/plant-pathology-2020-fgvc7/discussion/154056"&gt;this one&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;I let you go to &lt;a href="https://www.microsoft.com/en-us/research/blog/three-mysteries-in-deep-learning-ensemble-knowledge-distillation-and-self-distillation/"&gt;to this source mentioned aboved to understand how it could potentially works&lt;/a&gt;. It does not seems sure, but it seems related to the learning of specific features vs forcing the student to learn “multiple view”, multiple type of feature to detect in the images.&lt;/p&gt;
-&lt;p&gt;There is off course, no starting material to do it in R. Thanksfully there is a code example on the &lt;a href="https://keras.io/examples/vision/knowledge_distillation/"&gt;website of keras&lt;/a&gt;. In this example, they create a class of model, a distiller, to make the knowledge distillation. There is, however, one problem : &lt;strong&gt;model are not inheritable in R&lt;/strong&gt;. There is example of inheritance with a R6 for callback, &lt;a href="https://keras.rstudio.com/articles/training_callbacks.html"&gt;like here&lt;/a&gt;, but the models are not a R6 class. To overcome this problem, I used the code example as a guide, and reproduced the steps by following the approach in this &lt;a href="https://keras.rstudio.com/articles/eager_guide.html"&gt;guide for eager executation in keras with R&lt;/a&gt;. I took other code from &lt;a href="https://tensorflow.rstudio.com/tutorials/advanced/"&gt;the tensorflow website for R&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;The code is quite hard to understand at first glance&lt;/strong&gt;. The reason is, everything is executed in a &lt;strong&gt;single for loop&lt;/strong&gt;, since everything is done in eager mode. It did not seemed possible to do it differently. So there is a lot of variable around to collect metrics during training. If you want to understand the code just remove it from the loop and run it outside of the for loop, before reconstructing the loop around. I did not used tfdataset as shown on the guide for eager execution, so instead of make_iterator_one_shot() and iterator_get_next(), here we loop over the train_generator to produce the batches.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;library(tidyverse)
-library(tensorflow)
-tf$executing_eagerly()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] TRUE&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;tensorflow::tf_version()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] &amp;#39;2.3&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Here I flex with my own version of keras. Basically, it is a fork with application wrapper for the efficient net.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Disclaimer : I did not write the code for the really handy applications wrappers.&lt;/strong&gt; It came &lt;a href="https://github.com/rstudio/keras/commit/c406ec55f7bb2864ac58a17f963448810a531c18"&gt;from this commit&lt;/a&gt; for which the PR is hold until the fully release of tf 2.3, as stated &lt;a href="https://github.com/rstudio/keras/pull/1097"&gt;in this PR&lt;/a&gt;. I am not sure why the PR is closed.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;devtools::install_github(&amp;quot;Cdk29/keras&amp;quot;, dependencies = FALSE)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;library(keras)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels&amp;lt;-read_csv(&amp;#39;train.csv&amp;#39;)
-head(labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;# A tibble: 6 x 2
-  image_id       label
-  &amp;lt;chr&amp;gt;          &amp;lt;dbl&amp;gt;
-1 1000015157.jpg     0
-2 1000201771.jpg     3
-3 100042118.jpg      1
-4 1000723321.jpg     1
-5 1000812911.jpg     3
-6 1000837476.jpg     3&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;levels(as.factor(labels$label))&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] &amp;quot;0&amp;quot; &amp;quot;1&amp;quot; &amp;quot;2&amp;quot; &amp;quot;3&amp;quot; &amp;quot;4&amp;quot;&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;idx0&amp;lt;-which(labels$label==0)
-idx1&amp;lt;-which(labels$label==1)
-idx2&amp;lt;-which(labels$label==2)
-idx3&amp;lt;-which(labels$label==3)
-idx4&amp;lt;-which(labels$label==4)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels$CBB&amp;lt;-0
-labels$CBSD&amp;lt;-0
-labels$CGM&amp;lt;-0
-labels$CMD&amp;lt;-0
-labels$Healthy&amp;lt;-0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels$CBB[idx0]&amp;lt;-1
-labels$CBSD[idx1]&amp;lt;-1
-labels$CGM[idx2]&amp;lt;-1
-labels$CMD[idx3]&amp;lt;-1&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;“Would it have been easier to create a function to convert the labelling ?” You may ask.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels$Healthy[idx4]&amp;lt;-1&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Probably.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#labels$label&amp;lt;-NULL&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;head(labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;# A tibble: 6 x 7
-  image_id       label   CBB  CBSD   CGM   CMD Healthy
-  &amp;lt;chr&amp;gt;          &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt;   &amp;lt;dbl&amp;gt;
-1 1000015157.jpg     0     1     0     0     0       0
-2 1000201771.jpg     3     0     0     0     1       0
-3 100042118.jpg      1     0     1     0     0       0
-4 1000723321.jpg     1     0     1     0     0       0
-5 1000812911.jpg     3     0     0     0     1       0
-6 1000837476.jpg     3     0     0     0     1       0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;val_labels&amp;lt;-read_csv(&amp;#39;validation_set.csv&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_labels&amp;lt;-labels[which(!labels$image_id %in% val_labels$image_id),]&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;table(train_labels$image_id %in% val_labels$image_id)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;
-FALSE 
-19256 &lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_labels$label&amp;lt;-NULL
-val_labels$label&amp;lt;-NULL
+&lt;h1 id="segmenter"&gt;segmenteR&lt;/h1&gt;
+&lt;p&gt;Hi everyone ! Whether it is to perform systematic review, some data extraction, or a really specific project that requires it, you may need to extract a particular section from an scientific article in pdf format. If that is the case, you may be curious in this (prototype) R package, segmenteR, a tool to extract a section, for example, “material and methods”, from the pdf of an article, using the fonts information from the pdf and natural language processing.&lt;/p&gt;
+&lt;h3 id="context"&gt;Context&lt;/h3&gt;
+&lt;p&gt;It has been elaborated in the context of a research work conducted at the Joint Research Centre, Directorate F - Health, Consumers and Reference Materials, Ispra (VA), as a sub-part of a project that aimed to analyse a corpus of 801 articles, obtained from the PubMed MeSH database and related to several toxicity topics (cardiotoxicity, genotoxicity, etc).&lt;/p&gt;
+&lt;p&gt;We needed to extract both the material and methods section and the results section of each articles, to evaluate the quality of the reporting inside each articles and parse the texts for specific toxicity effects. The work has been published in the Journal of Applied Toxicology, &lt;em&gt;Toxicity effects of nanomaterials for health applications: how automation can support systematic review of the literature ? Blanka Halamoda-Kenzaoui, Etienne Rolland, Jacopo Piovesan, Antonio Puertas Gallardo, Susanne Bremer-Hoffmann&lt;/em&gt; &lt;a href="https://doi.org/10.1002/jat.4204"&gt;doi.org/10.1002/jat.4204&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;While this tool is a prototype, it has a small benchmark to evaluate its performances, as shown inside the article.&lt;/p&gt;
+&lt;h3 id="requirement"&gt;Requirement&lt;/h3&gt;
+&lt;p&gt;To extract the informations on the fonts inside the pdf we use Poppler, the &lt;a href="https://poppler.freedesktop.org/"&gt;PDF rendering library&lt;/a&gt; and its cpp API. SegmenteR require a &lt;strong&gt;version of poppler &amp;gt;= 0.89&lt;/strong&gt; as well as a recent version of pdftools. The dev version of pdftools integrate the required change, but you need to install it from github :&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;devtools::install_github(&amp;quot;ropensci/pdftools&amp;quot;) 
+devtools::install_github(&amp;quot;ec-jrc/jrc_f2_refine&amp;quot;, subdir=&amp;quot;segmenteR&amp;quot;) &lt;/code&gt;&lt;/pre&gt;
+&lt;h3 id="getting-started"&gt;Getting started&lt;/h3&gt;
+&lt;h4 id="the-short-way"&gt;The short way&lt;/h4&gt;
+&lt;p&gt;Download an open access article that was part of the corpus :&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;url &amp;lt;- (&amp;#39;https://www.cell.com/action/showPdf?pii=S1525-0016%2816%2931594-5&amp;#39;)
+download.file(url, &amp;#39;Abrams, M T et al 2010.pdf&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We need a model and from the &lt;a href="https://bnosac.github.io/udpipe/en/"&gt;library udpipe&lt;/a&gt; to tokenize and annotate the text :&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;## got the model for annotation
+dl &amp;lt;- udpipe::udpipe_download_model(&amp;quot;english-gum&amp;quot;)
+str(dl)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;&amp;#39;data.frame&amp;#39;:   1 obs. of  5 variables:
+ $ language        : chr &amp;quot;english-gum&amp;quot;
+ $ file_model      : chr &amp;quot;/tmp/RtmppZQhsl/https://casualr.netlify.app//posts/segmenteR_post/english-gum-ud-2.5-191206.udpipe&amp;quot;
+ $ url             : chr &amp;quot;https://raw.githubusercontent.com/jwijffels/udpipe.models.ud.2.5/master/inst/udpipe-ud-2.5-191206/english-gum-u&amp;quot;| __truncated__
+ $ download_failed : logi FALSE
+ $ download_message: chr &amp;quot;OK&amp;quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class="r"&gt;&lt;code&gt;model &amp;lt;- udpipe::udpipe_load_model(file = dl$file_model)
+#model&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class="r"&gt;&lt;code&gt;library(segmenteR)
+## basic example code
 
-head(train_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;# A tibble: 6 x 6
-  image_id         CBB  CBSD   CGM   CMD Healthy
-  &amp;lt;chr&amp;gt;          &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt;   &amp;lt;dbl&amp;gt;
-1 1000015157.jpg     1     0     0     0       0
-2 1000201771.jpg     0     0     0     1       0
-3 100042118.jpg      0     1     0     0       0
-4 1000723321.jpg     0     1     0     0       0
-5 1000812911.jpg     0     0     0     1       0
-6 1000837476.jpg     0     0     0     1       0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;head(val_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;# A tibble: 6 x 6
-  image_id         CBB  CBSD   CGM   CMD Healthy
-  &amp;lt;chr&amp;gt;          &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt;   &amp;lt;dbl&amp;gt;
-1 1003442061.jpg     0     0     0     0       1
-2 1004672608.jpg     0     0     0     1       0
-3 1007891044.jpg     0     0     0     1       0
-4 1009845426.jpg     0     0     0     1       0
-5 1010648150.jpg     0     0     0     1       0
-6 1011139244.jpg     0     0     0     1       0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;image_path&amp;lt;-&amp;#39;cassava-leaf-disease-classification/train_images/&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#data augmentation
-datagen &amp;lt;- image_data_generator(
-  rotation_range = 40,
-  width_shift_range = 0.2,
-  height_shift_range = 0.2,
-  shear_range = 0.2,
-  zoom_range = 0.5,
-  horizontal_flip = TRUE,
-  fill_mode = &amp;quot;reflect&amp;quot;
-)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;img_path&amp;lt;-&amp;quot;cassava-leaf-disease-classification/train_images/1000015157.jpg&amp;quot;
+section_aliases &amp;lt;- c(&amp;quot;material&amp;quot;, &amp;quot;method&amp;quot;, &amp;quot;experimental&amp;quot;, &amp;quot;experiment&amp;quot;, &amp;quot;methodology&amp;quot;)
 
-img &amp;lt;- image_load(img_path, target_size = c(448, 448))
-img_array &amp;lt;- image_to_array(img)
-img_array &amp;lt;- array_reshape(img_array, c(1, 448, 448, 3))
-img_array&amp;lt;-img_array/255
-# Generated that will flow augmented images
-augmentation_generator &amp;lt;- flow_images_from_data(
-  img_array, 
-  generator = datagen, 
-  batch_size = 1 
-)
-op &amp;lt;- par(mfrow = c(2, 2), pty = &amp;quot;s&amp;quot;, mar = c(1, 0, 1, 0))
-for (i in 1:4) {
-  batch &amp;lt;- generator_next(augmentation_generator)
-  plot(as.raster(batch[1,,,]))
+#model definition can be skipped, the function can download it automatically
+material_and_methods &amp;lt;- segmenteR::extract_section_from_pdf(pdf_name=&amp;quot;Abrams, M T et al 2010.pdf&amp;quot;,
+                                                             udpipe_model=model, 
+                                                             section_aliases=section_aliases)
+
+head(unique(material_and_methods$sentence))&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;[1] &amp;quot;MAterIAls And Methods Animals.&amp;quot;                                                                                                                                                                           
+[2] &amp;quot;Female Crl:CD-1/ICR mice were obtained from Charles River (Wilmington, MA) and were between 6 and 10 weeks old at time of study (25–30 g).&amp;quot;                                                               
+[3] &amp;quot;All studies were performed in Merck Research Laboratories′&amp;quot;                                                                                                                                               
+[4] &amp;quot;AAALAC-accredited West Point, PA animal facility using protocols approved by the Institutional Animal Care and Use Committee.&amp;quot;                                                                            
+[5] &amp;quot;Liposome assemblies, siRNAs, and reagents.&amp;quot;                                                                                                                                                               
+[6] &amp;quot;siRNA Lipid Nanoparticles were assembled using a process involving simultaneous mixing of the lipid mixture in an ethanol solution with an aqueous solution of siRNA, followed by stepwise diafiltration.&amp;quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And shazam, you have (hopefully) your material and methods section in ConLL-U format inside the dataframe material_and_methods, a format suitable for parsing, etc. You can stop reading this blog entry here.&lt;/p&gt;
+&lt;h4 id="a-more-in-depth-example"&gt;A more in-depth example&lt;/h4&gt;
+&lt;p&gt;This example show the inner working of the function extract_section_from_pdf(), and some functions you made need :&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;pdf_name &amp;lt;- &amp;quot;Abrams, M T et al 2010.pdf&amp;quot;
+remove_bibliography &amp;lt;- TRUE
+
+txt_pdf &amp;lt;- tabulizer::extract_text(pdf_name) # read the text from the pdf
+txt_pdf &amp;lt;- segmenteR::preprocess_article_txt(txt_pdf)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The role of the function annotate_txt_pdf() is to load the required model and use the library udpipe to tokenize and annotate the text. Please refer to the vignette or the &lt;a href="https://bnosac.github.io/udpipe/en/"&gt;excellent website&lt;/a&gt; of udpipe to get more details on the Conll-U format. The reason for this annotation is that we will need it to estimate where the section titles are the most likely placed. For example, if it is the first word of a sentence, if the the word of the sentence is also a section title, etc, it is probably a section title.&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;conllu_df &amp;lt;- segmenteR::annotate_txt_pdf(txt_pdf, udpipe_model=model ) # create the dataframe for NLP using udpipe
+head(conllu_df)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;  doc_id paragraph_id sentence_id
+1   doc1            1           1
+2   doc1            1           1
+3   doc1            1           1
+4   doc1            1           1
+5   doc1            1           1
+6   doc1            1           1
+                                                                              sentence
+1 original article© The American Society of Gene &amp;amp; Cell Therapy Molecular Therapy vol.
+2 original article© The American Society of Gene &amp;amp; Cell Therapy Molecular Therapy vol.
+3 original article© The American Society of Gene &amp;amp; Cell Therapy Molecular Therapy vol.
+4 original article© The American Society of Gene &amp;amp; Cell Therapy Molecular Therapy vol.
+5 original article© The American Society of Gene &amp;amp; Cell Therapy Molecular Therapy vol.
+6 original article© The American Society of Gene &amp;amp; Cell Therapy Molecular Therapy vol.
+  token_id    token    lemma  upos xpos                     feats
+1        1 original original   ADJ   JJ                Degree=Pos
+2        2 article© article©  NOUN   NN               Number=Sing
+3        3      The      the   DET   DT Definite=Def|PronType=Art
+4        4 American American PROPN  NNP               Number=Sing
+5        5  Society  Society PROPN  NNP               Number=Sing
+6        6       of       of   ADP   IN                      &amp;lt;NA&amp;gt;
+  head_token_id  dep_rel deps misc
+1             2     amod &amp;lt;NA&amp;gt; &amp;lt;NA&amp;gt;
+2            13 compound &amp;lt;NA&amp;gt; &amp;lt;NA&amp;gt;
+3             5      det &amp;lt;NA&amp;gt; &amp;lt;NA&amp;gt;
+4             5     amod &amp;lt;NA&amp;gt; &amp;lt;NA&amp;gt;
+5            13 compound &amp;lt;NA&amp;gt; &amp;lt;NA&amp;gt;
+6             7     case &amp;lt;NA&amp;gt; &amp;lt;NA&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The other informations we use, and the reason why we work directly on a pdf instead of a text, is the fonts information from the pdf, the font and the fontsize of the words inside the pdf. To do this we use poppler, a &lt;a href="https://poppler.freedesktop.org/"&gt;PDF rendering library&lt;/a&gt; and the cpp API of poppler. We extract this informations using a specific version of pdftools, reason why the package need a version of poppler &amp;gt; 0.89 as well as a recent version of pdftools.&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;poppler_output &amp;lt;- segmenteR::prepare_poppler_output(pdf_name)
+head(poppler_output)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;      Word             Font Size
+1        © AOJZVN+StoneSans  6.5
+2      The AOJZVN+StoneSans  6.5
+3 American AOJZVN+StoneSans  6.5
+4  Society AOJZVN+StoneSans  6.5
+5       of AOJZVN+StoneSans  6.5
+6     Gene AOJZVN+StoneSans  6.5&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;This informations is used to identify the probable font of the section, by first looking at the font used for the words Reference and Acknowledgment, that usually appear in only one occurrence in scientific articles :&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;font_section &amp;lt;- segmenteR::identify_font(poppler_output)
+print(font_section)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;[1] &amp;quot;VMUQDX+ITCStoneSans-Semibold&amp;quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Knowing this, we can know which sections are inside the articles and in which order they appear. The list under is the sections titles that the function will try to identify in the poppler output :&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;list_of_sections &amp;lt;- list(
+    c(&amp;quot;Introduction&amp;quot;, &amp;quot;INTRODUCTION&amp;quot;),
+    c(&amp;quot;Materials&amp;quot;, &amp;quot;Material&amp;quot;, &amp;quot;materials&amp;quot;, &amp;quot;material&amp;quot;, &amp;quot;MATERIALS&amp;quot;, &amp;quot;MATERIAL&amp;quot;),
+    c(&amp;quot;Methods&amp;quot;, &amp;quot;Method&amp;quot;, &amp;quot;methods&amp;quot;, &amp;quot;method&amp;quot;, &amp;quot;METHODS&amp;quot;, &amp;quot;METHOD&amp;quot;),
+    c(&amp;quot;Acknowledgements&amp;quot;, &amp;quot;Acknowledgments&amp;quot;, &amp;quot;ACKNOWLEDGEMENTS&amp;quot;, &amp;quot;ACKNOWLEDGMENTS&amp;quot;,
+      &amp;quot;Acknowledgement&amp;quot;, &amp;quot;Acknowledgment&amp;quot;, &amp;quot;ACKNOWLEDGEMENT&amp;quot;, &amp;quot;ACKNOWLEDGMENT&amp;quot;),
+    c(&amp;quot;References&amp;quot;, &amp;quot;REFERENCES&amp;quot;),
+    c(&amp;quot;Results&amp;quot;, &amp;quot;RESULTS&amp;quot;),
+    c(&amp;quot;Discussion&amp;quot;, &amp;quot;DISCUSSION&amp;quot;, &amp;quot;discussion&amp;quot;),
+    c(&amp;quot;Abstract&amp;quot;, &amp;quot;ABSTRACT&amp;quot;),
+    c(&amp;quot;Conclusions&amp;quot;, &amp;quot;Conclusion&amp;quot;, &amp;quot;CONCLUSION&amp;quot;, &amp;quot;CONCLUSIONS&amp;quot;),
+    c(&amp;quot;Background&amp;quot;, &amp;quot;BACKGROUND&amp;quot;),
+    c(&amp;quot;Experimental&amp;quot;, &amp;quot;EXPERIMENTAL&amp;quot;, &amp;quot;Experiment&amp;quot;),
+    c(&amp;quot;Supplementary&amp;quot;, &amp;quot;SUPPLEMENTARY&amp;quot;),
+    c(&amp;quot;Methodology&amp;quot;),
+    c(&amp;quot;Appendix&amp;quot;),
+    c(&amp;quot;Section&amp;quot;, &amp;quot;SECTION&amp;quot;)
+  )&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Clean_font_txt() remove the most common font inside the articles, which improve the correct localization of the sections by create_section_title_df() inside the pdf.&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;poppler_output &amp;lt;- segmenteR::clean_font_txt(poppler_output)
+head(poppler_output)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;      Word             Font Size
+1        © AOJZVN+StoneSans  6.5
+2      The AOJZVN+StoneSans  6.5
+3 American AOJZVN+StoneSans  6.5
+4  Society AOJZVN+StoneSans  6.5
+5       of AOJZVN+StoneSans  6.5
+6     Gene AOJZVN+StoneSans  6.5&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Section_title_df is a dataframe that contain the section titles in the article and their relative order, based on the fonts information retrieved from the pdf. This informations (order and existence) will be used to localize the section in the ConLL-U format. This step is needed as the order and the composition of the sections title can change from one article to the other.&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;section_title_df &amp;lt;- segmenteR::create_section_title_df(font_section, list_of_sections, poppler_output)
+section_title_df &amp;lt;- segmenteR::clean_title_journal(pdf_name, section_title_df)
+section_title_df &amp;lt;- segmenteR::ad_hoc_reorder(section_title_df)
+head(section_title_df)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;                Word                         Font Size
+293     Introduction VMUQDX+ITCStoneSans-Semibold 10.0
+1321         Results VMUQDX+ITCStoneSans-Semibold 10.0
+5243      Discussion VMUQDX+ITCStoneSans-Semibold 10.0
+6214       Materials VMUQDX+ITCStoneSans-Semibold 10.0
+6216         Methods VMUQDX+ITCStoneSans-Semibold 10.0
+7188 Acknowledgments VMUQDX+ITCStoneSans-Semibold  9.2&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Removing the bibliography prevent some error in the localization in some sections, especially if a reference start with the word “material”. This option can be set to false.&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;if (remove_bibliography == TRUE) {
+  conllu_df &amp;lt;- segmenteR::remove_bibliography_from_conllu(conllu_df, section_title_df)
+  section_title_df &amp;lt;- segmenteR::remove_reference_section_from_titles(section_title_df)
 }&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file73d26b7d19e_files/figure-html/unnamed-chunk-19-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;par(op)&lt;/code&gt;&lt;/pre&gt;
-&lt;h2 id="data-generator"&gt;Data generator&lt;/h2&gt;
-&lt;p&gt;Okay so here is an interresting thing, I will try to compress the code to call a train generator to make it easier to call it.&lt;/p&gt;
-&lt;p&gt;Why ? Well, apparently a generator does not yield infinite batches, and the for loop of the distiller will stop working without obvious reason at epoch 7, when reaching the end of the validation generator.&lt;/p&gt;
-&lt;p&gt;When we iterate over it, validation_generator yeld 8 images and 8 label, until the batch 267, than contains only 5 images (and create the bug when we try to add the loss of the batch to the loss of the epoch. Batch 268 does not exist. So solution seems to recreate on the fly the validation set and restart the iterations.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;arg.list &amp;lt;- list(dataframe = val_labels, directory = image_path,
-                                              class_mode = &amp;quot;other&amp;quot;,
-                                              x_col = &amp;quot;image_id&amp;quot;,
-                                              y_col = c(&amp;quot;CBB&amp;quot;,&amp;quot;CBSD&amp;quot;, &amp;quot;CGM&amp;quot;, &amp;quot;CMD&amp;quot;, &amp;quot;Healthy&amp;quot;),
-                                              target_size = c(228, 228),
-                                              batch_size=8)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;validation_generator &amp;lt;- do.call(flow_images_from_dataframe, arg.list)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;dim(validation_generator[266][[1]])&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1]   8 228 228   3&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;dim(validation_generator[267][[1]])&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1]   5 228 228   3&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;dim(val_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] 2141    6&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;2141/8&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] 267.625&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_generator &amp;lt;- flow_images_from_dataframe(dataframe = train_labels, 
-                                              directory = image_path,
-                                              generator = datagen,
-                                              class_mode = &amp;quot;other&amp;quot;,
-                                              x_col = &amp;quot;image_id&amp;quot;,
-                                              y_col = c(&amp;quot;CBB&amp;quot;,&amp;quot;CBSD&amp;quot;, &amp;quot;CGM&amp;quot;, &amp;quot;CMD&amp;quot;, &amp;quot;Healthy&amp;quot;),
-                                              target_size = c(228, 228),
-                                              batch_size=8)
-
-validation_generator &amp;lt;- flow_images_from_dataframe(dataframe = val_labels, 
-                                              directory = image_path,
-                                              class_mode = &amp;quot;other&amp;quot;,
-                                              x_col = &amp;quot;image_id&amp;quot;,
-                                              y_col = c(&amp;quot;CBB&amp;quot;,&amp;quot;CBSD&amp;quot;, &amp;quot;CGM&amp;quot;, &amp;quot;CMD&amp;quot;, &amp;quot;Healthy&amp;quot;),
-                                              target_size = c(228, 228),
-                                              batch_size=8)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_generator&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;&amp;lt;tensorflow.python.keras.preprocessing.image.DataFrameIterator&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;conv_base&amp;lt;-keras::application_efficientnet_b0(weights = &amp;quot;imagenet&amp;quot;, include_top = FALSE, input_shape = c(228, 228, 3))
-
-freeze_weights(conv_base)
-
-model &amp;lt;- keras_model_sequential() %&amp;gt;%
-    conv_base %&amp;gt;% 
-    layer_global_max_pooling_2d() %&amp;gt;% 
-    layer_batch_normalization() %&amp;gt;% 
-    layer_dropout(rate=0.5) %&amp;gt;%
-    layer_dense(units=5, activation=&amp;quot;softmax&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#unfreeze_weights(model, from = &amp;#39;block5a_expand_conv&amp;#39;)
-unfreeze_weights(conv_base, from = &amp;#39;block5a_expand_conv&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;model %&amp;gt;% load_model_weights_hdf5(&amp;quot;fine_tuned_eff_net_weights.15.hdf5&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;summary(model)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;Model: &amp;quot;sequential_2&amp;quot;
-______________________________________________________________________
-Layer (type)                   Output Shape                Param #    
-======================================================================
-efficientnetb0 (Functional)    (None, 8, 8, 1280)          4049571    
-______________________________________________________________________
-global_max_pooling2d_2 (Global (None, 1280)                0          
-______________________________________________________________________
-batch_normalization_2 (BatchNo (None, 1280)                5120       
-______________________________________________________________________
-dropout_2 (Dropout)            (None, 1280)                0          
-______________________________________________________________________
-dense_2 (Dense)                (None, 5)                   6405       
-======================================================================
-Total params: 4,061,096
-Trainable params: 3,707,853
-Non-trainable params: 353,243
-______________________________________________________________________&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;conv_base_student&amp;lt;-keras::application_efficientnet_b0(weights = &amp;quot;imagenet&amp;quot;, include_top = FALSE, input_shape = c(228, 228, 3))
-
-freeze_weights(conv_base_student)
-
-student &amp;lt;- keras_model_sequential() %&amp;gt;%
-    conv_base_student %&amp;gt;% 
-    layer_global_max_pooling_2d() %&amp;gt;% 
-    layer_batch_normalization() %&amp;gt;% 
-    layer_dropout(rate=0.5) %&amp;gt;%
-    layer_dense(units=5, activation=&amp;quot;softmax&amp;quot;)
-
-student&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;Model
-Model: &amp;quot;sequential_3&amp;quot;
-______________________________________________________________________
-Layer (type)                   Output Shape                Param #    
-======================================================================
-efficientnetb0 (Functional)    (None, 8, 8, 1280)          4049571    
-______________________________________________________________________
-global_max_pooling2d_3 (Global (None, 1280)                0          
-______________________________________________________________________
-batch_normalization_3 (BatchNo (None, 1280)                5120       
-______________________________________________________________________
-dropout_3 (Dropout)            (None, 1280)                0          
-______________________________________________________________________
-dense_3 (Dense)                (None, 5)                   6405       
-======================================================================
-Total params: 4,061,096
-Trainable params: 8,965
-Non-trainable params: 4,052,131
-______________________________________________________________________&lt;/code&gt;&lt;/pre&gt;
-&lt;h2 id="source-code-and-knowledge-distillation"&gt;Source code and knowledge distillation&lt;/h2&gt;
-&lt;p&gt;Source code for knowledge distillation with Keras : &lt;a href="https://keras.io/examples/vision/knowledge_distillation/" class="uri"&gt;https://keras.io/examples/vision/knowledge_distillation/&lt;/a&gt;&lt;br /&gt;
-Help for eager executation details in R and various usefull code : &lt;a href="https://keras.rstudio.com/articles/eager_guide.html" class="uri"&gt;https://keras.rstudio.com/articles/eager_guide.html&lt;/a&gt;&lt;br /&gt;
-Other source code in R : &lt;a href="https://tensorflow.rstudio.com/tutorials/advanced/" class="uri"&gt;https://tensorflow.rstudio.com/tutorials/advanced/&lt;/a&gt;&lt;/p&gt;
-&lt;p&gt;I am using an alpha parameter of 0.9 as suggested by this &lt;a href="https://openaccess.thecvf.com/content_ICCV_2019/papers/Cho_On_the_Efficacy_of_Knowledge_Distillation_ICCV_2019_paper.pdf"&gt;article&lt;/a&gt;.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;i=1
-alpha=0.9 #On_the_Efficacy_of_Knowledge_Distillation_ICCV_2019
-temperature=3&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;optimizer &amp;lt;- optimizer_adam()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_loss &amp;lt;- tf$keras$metrics$Mean(name=&amp;#39;student_loss&amp;#39;)
-train_accuracy &amp;lt;-  tf$keras$metrics$CategoricalAccuracy(name=&amp;#39;train_accuracy&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;nb_epoch&amp;lt;-12&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;nb_batch&amp;lt;-300
-val_step&amp;lt;-40&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_loss_plot&amp;lt;-c()
-accuracy_plot&amp;lt;-c()
-distilation_loss_plot &amp;lt;- c()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;val_loss_plot &amp;lt;- c()
-val_accuracy_plot &amp;lt;- c()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;count_epoch&amp;lt;-0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;for (epoch in 1:nb_epoch) {
-    cat(&amp;quot;Epoch: &amp;quot;, epoch, &amp;quot; -----------\n&amp;quot;)
-    # Init metrics
-    train_loss_epoch &amp;lt;- 0
-    accuracies_on_epoch &amp;lt;- c()
-    distilation_loss_epoch &amp;lt;- 0
-    val_loss_epoch &amp;lt;- 0
-    val_accuaries_on_epoch &amp;lt;- c()
-    
-    #Formula to not see the same batch over and over on each epoch
-    #Count epoch instead of epoch
-    count_epoch&amp;lt;-count_epoch+1
-    idx_batch &amp;lt;- (1+nb_batch*(count_epoch-1)):(nb_batch*count_epoch)
-    idx_val_set &amp;lt;- (1+val_step*(count_epoch-1)):(val_step*count_epoch)
-    
-    #Dirty solution to restart on a new validation batch generator before reaching the end of the other one 
-    if (as.integer((dim(val_labels)[1]/8)-1) %in% idx_val_set) {
-        count_epoch&amp;lt;-1
-        idx_val_set &amp;lt;- (1+val_step*(count_epoch-1)):(val_step*count_epoch)
-        validation_generator &amp;lt;- do.call(flow_images_from_dataframe, arg.list)
-    }
-    #need the same if for train generator
-    if (as.integer((dim(train_labels)[1]/8)-1) %in% idx_batch) {
-        count_epoch&amp;lt;-1
-        idx_batch &amp;lt;- (1+nb_batch*(count_epoch-1)):(nb_batch*count_epoch)
-        train_generator &amp;lt;- do.call(flow_images_from_dataframe, arg.list)
-    }
-    
-    for (batch in idx_batch) {
-        x = train_generator[batch][[1]]
-        y = train_generator[batch][[2]]
-        # Forward pass of teacher
-        teacher_predictions = model(x)
-
-        with(tf$GradientTape() %as% tape, {
-            student_predictions = student(x)
-            student_loss = tf$losses$categorical_crossentropy(y, student_predictions)
-        
-            distillation_loss = tf$losses$categorical_crossentropy(tf$nn$softmax(teacher_predictions/temperature, axis=0L), 
-                                                           tf$nn$softmax(student_predictions/temperature, axis=0L))
-        
-            loss = alpha * student_loss + (1 - alpha) * distillation_loss
-            })
-        
-        # Compute gradients
-        # Variating learning rate :
-        # optimizer &amp;lt;- optimizer_adam(lr = 0.0001)
-        gradients &amp;lt;- tape$gradient(loss, student$trainable_variables)
-        optimizer$apply_gradients(purrr::transpose(list(gradients, student$trainable_variables)))
-        
-        #Collect the metrics of the student
-        train_loss_epoch &amp;lt;- train_loss_epoch + student_loss
-        distilation_loss_epoch &amp;lt;- distilation_loss_epoch + distillation_loss
-        
-        accuracy_on_batch &amp;lt;- train_accuracy(y_true=y, y_pred=student_predictions)
-        accuracies_on_epoch &amp;lt;- c(accuracies_on_epoch, as.numeric(accuracy_on_batch))
-        
-    }
-
-    #Collect info on current epoch and for graphs and cat()
-    train_loss_epoch &amp;lt;- mean(as.vector(as.numeric(train_loss_epoch))/nb_batch)
-    train_loss_plot &amp;lt;- c(train_loss_plot, train_loss_epoch)
-    
-    distilation_loss_epoch &amp;lt;- mean(as.vector(as.numeric(distilation_loss_epoch))/nb_batch)
-    distilation_loss_plot &amp;lt;- c(distilation_loss_plot, distilation_loss_epoch)
-    
-    accuracies_on_epoch &amp;lt;- mean(accuracies_on_epoch)
-    accuracy_plot &amp;lt;- c(accuracy_plot, accuracies_on_epoch)
-    
-    
-    for (step in idx_val_set) {
-        # Unpack the data
-        x = validation_generator[step][[1]]
-        y = validation_generator[step][[2]]
-
-        # Compute predictions
-        student_predictions = student(x)
-
-        # Calculate the loss
-        student_loss = tf$losses$categorical_crossentropy(y, student_predictions)
-
-        #Collect the metrics of the student
-        #This line will create a bug of shape when val_loss end.
-        val_loss_epoch &amp;lt;- val_loss_epoch + student_loss
-        
-        accuracy_on_val_step &amp;lt;- train_accuracy(y_true=y, y_pred=student_predictions)
-        val_accuaries_on_epoch &amp;lt;- c(val_accuaries_on_epoch, as.numeric(accuracy_on_val_step))
-    }
-    
-    #Collect info on current epoch and for graphs and cat()
-    val_loss_epoch &amp;lt;- mean(as.vector(as.numeric(val_loss_epoch))/val_step)
-    val_loss_plot &amp;lt;- c(val_loss_plot, val_loss_epoch)
-    
-    val_accuaries_on_epoch &amp;lt;- mean(val_accuaries_on_epoch)
-    val_accuracy_plot &amp;lt;- c(val_accuracy_plot, val_accuaries_on_epoch)
-    
-    #Plotting
-    cat(&amp;quot;Total loss (epoch): &amp;quot;, epoch, &amp;quot;: &amp;quot;, train_loss_epoch, &amp;quot;\n&amp;quot;)
-    cat(&amp;quot;Distillater loss : &amp;quot;, epoch, &amp;quot;: &amp;quot;, distilation_loss_epoch, &amp;quot;\n&amp;quot;)
-    cat(&amp;quot;Accuracy (epoch): &amp;quot;, epoch, &amp;quot;: &amp;quot;, accuracies_on_epoch, &amp;quot;\n&amp;quot;)
-    cat(&amp;quot;Val loss : &amp;quot;, epoch, &amp;quot;: &amp;quot;, val_loss_epoch, &amp;quot;\n&amp;quot;)
-    cat(&amp;quot;Val Accuracy (epoch): &amp;quot;, epoch, &amp;quot;: &amp;quot;, val_accuaries_on_epoch, &amp;quot;\n&amp;quot;)
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;Epoch:  1  -----------
-Total loss (epoch):  1 :  2.039012 
-Distillater loss :  1 :  1.006556 
-Accuracy (epoch):  1 :  0.5080433 
-Val loss :  1 :  1.763168 
-Val Accuracy (epoch):  1 :  0.5439153 
-Epoch:  2  -----------
-Total loss (epoch):  2 :  1.762901 
-Distillater loss :  2 :  1.006239 
-Accuracy (epoch):  2 :  0.5577826 
-Val loss :  2 :  1.97033 
-Val Accuracy (epoch):  2 :  0.5661676 
-Epoch:  3  -----------
-Total loss (epoch):  3 :  1.579749 
-Distillater loss :  3 :  1.006044 
-Accuracy (epoch):  3 :  0.5736421 
-Val loss :  3 :  1.905465 
-Val Accuracy (epoch):  3 :  0.5780829 
-Epoch:  4  -----------
-Total loss (epoch):  4 :  1.574974 
-Distillater loss :  4 :  1.006023 
-Accuracy (epoch):  4 :  0.5822586 
-Val loss :  4 :  1.480275 
-Val Accuracy (epoch):  4 :  0.5850493 
-Epoch:  5  -----------
-Total loss (epoch):  5 :  1.585655 
-Distillater loss :  5 :  1.006049 
-Accuracy (epoch):  5 :  0.5862214 
-Val loss :  5 :  1.555588 
-Val Accuracy (epoch):  5 :  0.5880813 
-Epoch:  6  -----------
-Total loss (epoch):  6 :  1.48109 
-Distillater loss :  6 :  1.005946 
-Accuracy (epoch):  6 :  0.591379 
-Val loss :  6 :  1.34698 
-Val Accuracy (epoch):  6 :  0.5948141 
-Epoch:  7  -----------
-Total loss (epoch):  7 :  1.443343 
-Distillater loss :  7 :  1.005908 
-Accuracy (epoch):  7 :  0.598381 
-Val loss :  7 :  2.100892 
-Val Accuracy (epoch):  7 :  0.5997039 
-Epoch:  8  -----------
-Total loss (epoch):  8 :  1.505846 
-Distillater loss :  8 :  1.005823 
-Accuracy (epoch):  8 :  0.6015843 
-Val loss :  8 :  1.875012 
-Val Accuracy (epoch):  8 :  0.6045091 
-Epoch:  9  -----------
-Total loss (epoch):  9 :  1.459987 
-Distillater loss :  9 :  1.005817 
-Accuracy (epoch):  9 :  0.6065652 
-Val loss :  9 :  2.155602 
-Val Accuracy (epoch):  9 :  0.6070286 
-Epoch:  10  -----------
-Total loss (epoch):  10 :  1.439232 
-Distillater loss :  10 :  1.005853 
-Accuracy (epoch):  10 :  0.607651 
-Val loss :  10 :  1.204198 
-Val Accuracy (epoch):  10 :  0.6086346 
-Epoch:  11  -----------
-Total loss (epoch):  11 :  1.46762 
-Distillater loss :  11 :  1.005828 
-Accuracy (epoch):  11 :  0.6091381 
-Val loss :  11 :  1.355449 
-Val Accuracy (epoch):  11 :  0.6095436 
-Epoch:  12  -----------
-Total loss (epoch):  12 :  1.298911 
-Distillater loss :  12 :  1.005788 
-Accuracy (epoch):  12 :  0.6111491 
-Val loss :  12 :  1.408917 
-Val Accuracy (epoch):  12 :  0.6121414 &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;What about global_step = tf.train.get_or_create_global_step() describe &lt;a href="https://keras.rstudio.com/articles/eager_guide.html"&gt;here&lt;/a&gt; ? It seems to only refers to the number of batches seen by the graph. &lt;a href="https://stackoverflow.com/questions/41166681/what-does-global-step-mean-in-tensorflow"&gt;Source&lt;/a&gt;.&lt;/p&gt;
-&lt;h2 id="plotting"&gt;Plotting&lt;/h2&gt;
-&lt;pre class="r"&gt;&lt;code&gt;total_loss_plot&amp;lt;-c()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#instead of collecting them during the training : 
-total_loss_plot &amp;lt;- alpha * train_loss_plot + (1 - alpha) * distilation_loss_plot&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;data &amp;lt;- data.frame(&amp;quot;Student_loss&amp;quot; = train_loss_plot, 
-                    &amp;quot;Distillation_loss&amp;quot; = distilation_loss_plot,
-                   &amp;quot;Total_loss&amp;quot; = total_loss_plot,
-                    &amp;quot;Epoch&amp;quot; = 1:length(train_loss_plot),
-                    &amp;quot;Val_loss&amp;quot; = val_loss_plot,
-                    &amp;quot;Train_accuracy&amp;quot;= accuracy_plot,
-                    &amp;quot;Val_accuracy&amp;quot;= val_accuracy_plot)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;head(data)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;  Student_loss Distillation_loss Total_loss Epoch Val_loss
-1     2.039012          1.006556   1.935766     1 1.763168
-2     1.762901          1.006239   1.687235     2 1.970330
-3     1.579749          1.006044   1.522379     3 1.905465
-4     1.574974          1.006023   1.518078     4 1.480275
-5     1.585655          1.006049   1.527694     5 1.555588
-6     1.481090          1.005946   1.433575     6 1.346980
-  Train_accuracy Val_accuracy
-1      0.5080433    0.5439153
-2      0.5577826    0.5661676
-3      0.5736421    0.5780829
-4      0.5822586    0.5850493
-5      0.5862214    0.5880813
-6      0.5913790    0.5948141&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Where total_loss is alpha * train_loss_plot * (1 - alpha) * distilation_loss_plot&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;ggplot(data, aes(Epoch)) +
-  scale_colour_manual(values=c(Student_loss=&amp;quot;#F8766D&amp;quot;,Val_loss=&amp;quot;#00BFC4&amp;quot;, Distillation_loss=&amp;quot;#DE8C00&amp;quot;, Total_loss=&amp;quot;#1aff8c&amp;quot;)) +
-  geom_line(aes(y = Student_loss, colour = &amp;quot;Student_loss&amp;quot;)) + 
-  geom_line(aes(y = Val_loss, colour = &amp;quot;Val_loss&amp;quot;)) + 
-  geom_line(aes(y = Total_loss, colour = &amp;quot;Total_loss&amp;quot;)) + 
-  geom_line(aes(y = Distillation_loss, colour = &amp;quot;Distillation_loss&amp;quot;))&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file73d26b7d19e_files/figure-html/unnamed-chunk-46-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#Validation set
-ggplot(data, aes(Epoch)) + 
-  geom_line(aes(y = Train_accuracy, colour = &amp;quot;Train_accuracy&amp;quot;)) + 
-  geom_line(aes(y = Val_accuracy, colour = &amp;quot;Val_accuracy&amp;quot;))&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file73d26b7d19e_files/figure-html/unnamed-chunk-46-2.png" width="672" /&gt;&lt;/p&gt;
-&lt;h1 id="fine-tuning-and-conclusion"&gt;Fine tuning and conclusion&lt;/h1&gt;
-&lt;p&gt;Is that all ? Well, no. Here we perform knowledge distillation to teach to the head of the student network.&lt;/p&gt;
-&lt;p&gt;The next step would be to reproduce the knowledge distillation after unfreezing some part of the student, after writing something like :&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;unfreeze_weights(conv_base_student, from = &amp;#39;block5a_expand_conv&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;But I will not bet my small GPU card on this or start a fire in my basement for the sake of the tutorial.&lt;/p&gt;
-&lt;p&gt;As I mentioned earlier, &lt;a href="https://www.kaggle.com/cdk292/knowledge-distillation-with-r-and-keras-tf/"&gt;I readapted my code from kaggle, where the gpu is much bigger&lt;/a&gt;. Take a look if you want to see, but basically the end output looks like this :&lt;/p&gt;
-&lt;div class="figure"&gt;
-&lt;img src="https://casualr.netlify.app//posts/Knowledge_distillation_post/more_accuracy.png" alt="" /&gt;
-&lt;p class="caption"&gt;loss&lt;/p&gt;
-&lt;/div&gt;
-&lt;div class="figure"&gt;
-&lt;img src="https://casualr.netlify.app//posts/Knowledge_distillation_post/more_loss.png" alt="" /&gt;
-&lt;p class="caption"&gt;accuracy&lt;/p&gt;
-&lt;/div&gt;
-&lt;p&gt;Well, that’s it for this post, which is probably already lengthy enough for a blog post !&lt;/p&gt;
+&lt;p&gt;Knowing the relative order of the sections from one side, their names and the informations from the Conll-U dataframe (position inside the sentence, or the other words in the sentence) we can estimate the position of the different sections inside the Conll-U dataframe. Please note that the positions_sections_df is not the section_title_df, since section_title_df refer to the position inside the output from poppler, while section_title_df indicate the position inside the Conll-U dataframe.&lt;/p&gt;
+&lt;pre class="r"&gt;&lt;code&gt;positions_sections_df &amp;lt;- segmenteR::locate_sections_position_in_conllu(conllu_df, section_title_df)
+segmenteR::check_sections_df(positions_sections_df)
+head(positions_sections_df)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;                section occurrences
+1          Introduction         239
+2               Results        1173
+3            Discussion        6295
+4 Materials and Methods        7563
+6       Acknowledgments        8769&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class="r"&gt;&lt;code&gt;section &amp;lt;- segmenteR::extract_section_from_conllu(conllu_df, positions_sections_df, section_aliases)
+head(unique(section$sentence))&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;[1] &amp;quot;MAterIAls And Methods Animals.&amp;quot;                                                                                                                                                                           
+[2] &amp;quot;Female Crl:CD-1/ICR mice were obtained from Charles River (Wilmington, MA) and were between 6 and 10 weeks old at time of study (25–30 g).&amp;quot;                                                               
+[3] &amp;quot;All studies were performed in Merck Research Laboratories′&amp;quot;                                                                                                                                               
+[4] &amp;quot;AAALAC-accredited West Point, PA animal facility using protocols approved by the Institutional Animal Care and Use Committee.&amp;quot;                                                                            
+[5] &amp;quot;Liposome assemblies, siRNAs, and reagents.&amp;quot;                                                                                                                                                               
+[6] &amp;quot;siRNA Lipid Nanoparticles were assembled using a process involving simultaneous mixing of the lipid mixture in an ethanol solution with an aqueous solution of siRNA, followed by stepwise diafiltration.&amp;quot;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Finally extract_section_from_conllu() provide the section in ConLL-U format inside the dataframe section.&lt;/p&gt;
+&lt;h2 id="known-gotchas"&gt;Known Gotchas&lt;/h2&gt;
+&lt;p&gt;Don’t use it on an article of two pages. Ever.&lt;/p&gt;
+&lt;h2 id="github-repository"&gt;Github repository&lt;/h2&gt;
+&lt;p&gt;More seriously, the extraction will fail on article of one or two pages, because of a function that remove sections names that have the same number of occurences than the numbers of pages, since some journals have names including “Materials”, or “Results”, wrote in the exact same fonts that the one of the sections titles. It would be something to improve in the definitive version of the package.&lt;/p&gt;
+&lt;p&gt;If you try this package for your project, by curiosity and have some comments or question, or if it does not work on your favorite article, feel free to open an issue on &lt;a href="https://github.com/ec-jrc/jrc_f2_refine"&gt;the github repository of the projet&lt;/a&gt;, I would be glad to take a look it.&lt;/p&gt;
 &lt;pre class="r distill-force-highlighting-css"&gt;&lt;code&gt;&lt;/code&gt;&lt;/pre&gt;</description>
-      <distill:md5>b547af60b1600dec9f4af49762da837f</distill:md5>
-      <guid>https://casualr.netlify.app/posts/Knowledge_distillation_post</guid>
-      <pubDate>Thu, 03 Jun 2021 00:00:00 +0000</pubDate>
-      <media:content url="https://casualr.netlify.app/posts/Knowledge_distillation_post/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+      <distill:md5>32b8260629415b19a767f3ef46752915</distill:md5>
+      <guid>https://casualr.netlify.app/posts/segmenteR_post</guid>
+      <pubDate>Thu, 10 Jun 2021 00:00:00 +0000</pubDate>
     </item>
   </channel>
 </rss>
