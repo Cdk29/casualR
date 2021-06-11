@@ -35,7 +35,7 @@ dl &amp;lt;- udpipe::udpipe_download_model(&amp;quot;english-gum&amp;quot;)
 str(dl)&lt;/code&gt;&lt;/pre&gt;
 &lt;pre&gt;&lt;code&gt;&amp;#39;data.frame&amp;#39;:   1 obs. of  5 variables:
  $ language        : chr &amp;quot;english-gum&amp;quot;
- $ file_model      : chr &amp;quot;/tmp/RtmppZQhsl/https://casualr.netlify.app//posts/segmenteR_post/english-gum-ud-2.5-191206.udpipe&amp;quot;
+ $ file_model      : chr &amp;quot;/tmp/RtmpSJ4sIF/https://casualr.netlify.app//posts/segmenteR_post/english-gum-ud-2.5-191206.udpipe&amp;quot;
  $ url             : chr &amp;quot;https://raw.githubusercontent.com/jwijffels/udpipe.models.ud.2.5/master/inst/udpipe-ud-2.5-191206/english-gum-u&amp;quot;| __truncated__
  $ download_failed : logi FALSE
  $ download_message: chr &amp;quot;OK&amp;quot;&lt;/code&gt;&lt;/pre&gt;
