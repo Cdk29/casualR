@@ -2,4 +2,5 @@ _posts/*/*.pdf
 .Rproj.user
 _posts/Knowledge_distillation_post/cassava-leaf-disease-classification/*
 _site/posts/Knowledge_distillation_post/cassava-leaf-disease-classification/*
-
+_posts/Cyclical_lr_post/cassava-leaf-disease-classification/*
+_site/posts/Cyclical_lr_post/cassava-leaf-disease-classification/*
