@@ -6,391 +6,78 @@
     <atom:link href="https://casualr.netlify.app/index.xml" rel="self" type="application/rss+xml"/>
     <description>Really specifics solutions to really specifics problems I have encountered.</description>
     <generator>Distill</generator>
-    <lastBuildDate>Tue, 29 Jun 2021 00:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 23 Jan 2023 00:00:00 +0000</lastBuildDate>
     <item>
-      <title>Cyclical learning rate with R and Keras</title>
+      <title> WWI VieweR, A shiny app to visualize the battles of the first world war</title>
       <dc:creator>Etienne Rolland</dc:creator>
-      <link>https://casualr.netlify.app/posts/Cyclical_lr_post</link>
+      <link>https://casualr.netlify.app/posts/WWI_viewer</link>
       <description>
 
 
-&lt;h1 id="efficientnet-with-r-and-tf2"&gt;Efficientnet with R and Tf2&lt;/h1&gt;
-&lt;p&gt;In this blog post I will share a way to perform cyclical learning rate, with R. I worked on top of some source code I found on a other blog, by chance, but I adjusted things to make it more similar to the fast.ai approach. Also, my blog is on R-bloggers, so other R users that might want to use cyclical learning rate with R will have less trouble to find it. Sometimes things are possible in R, but, since our community is smaller, we don’t have that many resources or tutorials compared to the python community.&lt;/p&gt;
-&lt;p&gt;What is cyclical learning rate ? In a nutshell it is mostly about varying the learning rate around a min and max value during an epoch. The interests are that : 1) you don’t need to keep trying different learning rate, 2) it works as a form of regularization. Also, it trains the network faster (a phenomenon named “super convergence”).&lt;/p&gt;
-&lt;h2 id="about-the-data"&gt;About the data&lt;/h2&gt;
-&lt;p&gt;I wrote this code in the first place in the context of the &lt;a href="https://www.kaggle.com/c/cassava-leaf-disease-classification"&gt;Cassava Leaf Disease Classification&lt;/a&gt;, a Kaggle’s competition where the goal was to train a model to identify the disease on leafs of cassava. Like the last time the I will use an Efficientnet0.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#reticulate::py_install(packages = &amp;quot;tensorflow&amp;quot;, version = &amp;quot;2.3.0&amp;quot;, pip=TRUE)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;library(tidyverse)
-library(tensorflow)
-tf$executing_eagerly()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] TRUE&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;tensorflow::tf_version()&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] &amp;#39;2.3&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Here I flex with my own version of keras. Basically, it is a fork with application wrapper for the efficient net.&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Disclaimer : I did not write the code for the really handy applications wrappers.&lt;/strong&gt; It came &lt;a href="https://github.com/rstudio/keras/commit/c406ec55f7bb2864ac58a17f963448810a531c18"&gt;from this commit&lt;/a&gt; for which the PR is hold until the fully release of tf 2.3, as stated &lt;a href="https://github.com/rstudio/keras/pull/1097"&gt;in this PR&lt;/a&gt;. I am not sure why the PR is closed.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;devtools::install_github(&amp;quot;Cdk29/keras&amp;quot;, dependencies = FALSE)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;library(keras)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels&amp;lt;-read_csv(&amp;#39;train.csv&amp;#39;)
-head(labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;# A tibble: 6 x 2
-  image_id       label
-  &amp;lt;chr&amp;gt;          &amp;lt;dbl&amp;gt;
-1 1000015157.jpg     0
-2 1000201771.jpg     3
-3 100042118.jpg      1
-4 1000723321.jpg     1
-5 1000812911.jpg     3
-6 1000837476.jpg     3&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;levels(as.factor(labels$label))&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;[1] &amp;quot;0&amp;quot; &amp;quot;1&amp;quot; &amp;quot;2&amp;quot; &amp;quot;3&amp;quot; &amp;quot;4&amp;quot;&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;idx0&amp;lt;-which(labels$label==0)
-idx1&amp;lt;-which(labels$label==1)
-idx2&amp;lt;-which(labels$label==2)
-idx3&amp;lt;-which(labels$label==3)
-idx4&amp;lt;-which(labels$label==4)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels$CBB&amp;lt;-0
-labels$CBSD&amp;lt;-0
-labels$CGM&amp;lt;-0
-labels$CMD&amp;lt;-0
-labels$Healthy&amp;lt;-0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels$CBB[idx0]&amp;lt;-1
-labels$CBSD[idx1]&amp;lt;-1
-labels$CGM[idx2]&amp;lt;-1
-labels$CMD[idx3]&amp;lt;-1&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;“Would it have been easier to create a function to convert the labelling ?” You may ask.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;labels$Healthy[idx4]&amp;lt;-1&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Probably.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#labels$label&amp;lt;-NULL&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;head(labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;# A tibble: 6 x 7
-  image_id       label   CBB  CBSD   CGM   CMD Healthy
-  &amp;lt;chr&amp;gt;          &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt; &amp;lt;dbl&amp;gt;   &amp;lt;dbl&amp;gt;
-1 1000015157.jpg     0     1     0     0     0       0
-2 1000201771.jpg     3     0     0     0     1       0
-3 100042118.jpg      1     0     1     0     0       0
-4 1000723321.jpg     1     0     1     0     0       0
-5 1000812911.jpg     3     0     0     0     1       0
-6 1000837476.jpg     3     0     0     0     1       0&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Following code is retaken from this online notebook named &lt;a href="https://www.kaggle.com/demetrypascal/simple-convnet"&gt;simple-convnet&lt;/a&gt;, which used a better approach to create a validation set than I did in the first place (not at random, but with stratification) :&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;set.seed(6)
-
-tmp = splitstackshape::stratified(labels, c(&amp;#39;label&amp;#39;), 0.90, bothSets = TRUE)
-
-train_labels = tmp[[1]]
-val_labels = tmp[[2]]
-
-#following line for knowledge distillation : 
-write.csv(val_labels, file=&amp;#39;validation_set.csv&amp;#39;, row.names=FALSE, quote=FALSE)
-
-
-train_labels$label&amp;lt;-NULL
-val_labels$label&amp;lt;-NULL
-
-head(train_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;         image_id CBB CBSD CGM CMD Healthy
-1: 3903787097.jpg   1    0   0   0       0
-2: 1026467332.jpg   1    0   0   0       0
-3:  436868168.jpg   1    0   0   0       0
-4: 2270851426.jpg   1    0   0   0       0
-5: 3234915269.jpg   1    0   0   0       0
-6: 3950368220.jpg   1    0   0   0       0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;head(val_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;         image_id CBB CBSD CGM CMD Healthy
-1: 1003442061.jpg   0    0   0   0       1
-2: 1004672608.jpg   0    0   0   1       0
-3: 1007891044.jpg   0    0   0   1       0
-4: 1009845426.jpg   0    0   0   1       0
-5: 1010648150.jpg   0    0   0   1       0
-6: 1011139244.jpg   0    0   0   1       0&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;summary(train_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;   image_id              CBB               CBSD       
- Length:19256       Min.   :0.00000   Min.   :0.0000  
- Class :character   1st Qu.:0.00000   1st Qu.:0.0000  
- Mode  :character   Median :0.00000   Median :0.0000  
-                    Mean   :0.05079   Mean   :0.1023  
-                    3rd Qu.:0.00000   3rd Qu.:0.0000  
-                    Max.   :1.00000   Max.   :1.0000  
-      CGM              CMD           Healthy      
- Min.   :0.0000   Min.   :0.000   Min.   :0.0000  
- 1st Qu.:0.0000   1st Qu.:0.000   1st Qu.:0.0000  
- Median :0.0000   Median :1.000   Median :0.0000  
- Mean   :0.1115   Mean   :0.615   Mean   :0.1204  
- 3rd Qu.:0.0000   3rd Qu.:1.000   3rd Qu.:0.0000  
- Max.   :1.0000   Max.   :1.000   Max.   :1.0000  &lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;summary(val_labels)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;   image_id              CBB               CBSD       
- Length:2141        Min.   :0.00000   Min.   :0.0000  
- Class :character   1st Qu.:0.00000   1st Qu.:0.0000  
- Mode  :character   Median :0.00000   Median :0.0000  
-                    Mean   :0.05091   Mean   :0.1023  
-                    3rd Qu.:0.00000   3rd Qu.:0.0000  
-                    Max.   :1.00000   Max.   :1.0000  
-      CGM              CMD            Healthy      
- Min.   :0.0000   Min.   :0.0000   Min.   :0.0000  
- 1st Qu.:0.0000   1st Qu.:0.0000   1st Qu.:0.0000  
- Median :0.0000   Median :1.0000   Median :0.0000  
- Mean   :0.1116   Mean   :0.6147   Mean   :0.1205  
- 3rd Qu.:0.0000   3rd Qu.:1.0000   3rd Qu.:0.0000  
- Max.   :1.0000   Max.   :1.0000   Max.   :1.0000  &lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;image_path&amp;lt;-&amp;#39;cassava-leaf-disease-classification/train_images/&amp;#39;&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#data augmentation
-datagen &amp;lt;- image_data_generator(
-  rotation_range = 40,
-  width_shift_range = 0.2,
-  height_shift_range = 0.2,
-  shear_range = 0.2,
-  zoom_range = 0.5,
-  horizontal_flip = TRUE,
-  fill_mode = &amp;quot;reflect&amp;quot;
-)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;img_path&amp;lt;-&amp;quot;cassava-leaf-disease-classification/train_images/1000015157.jpg&amp;quot;
-
-img &amp;lt;- image_load(img_path, target_size = c(448, 448))
-img_array &amp;lt;- image_to_array(img)
-img_array &amp;lt;- array_reshape(img_array, c(1, 448, 448, 3))
-img_array&amp;lt;-img_array/255
-# Generated that will flow augmented images
-augmentation_generator &amp;lt;- flow_images_from_data(
-  img_array, 
-  generator = datagen, 
-  batch_size = 1 
-)
-op &amp;lt;- par(mfrow = c(2, 2), pty = &amp;quot;s&amp;quot;, mar = c(1, 0, 1, 0))
-for (i in 1:4) {
-  batch &amp;lt;- generator_next(augmentation_generator)
-  plot(as.raster(batch[1,,,]))
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file10894b7abd0d_files/figure-html/unnamed-chunk-19-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;par(op)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Maybe you can skip the conversion of the label into 1 and 0 and directly create train generator from the original label column of the dataframe.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;train_generator &amp;lt;- flow_images_from_dataframe(dataframe = train_labels, 
-                                              directory = image_path,
-                                              generator = datagen,
-                                              class_mode = &amp;quot;other&amp;quot;,
-                                              x_col = &amp;quot;image_id&amp;quot;,
-                                              y_col = c(&amp;quot;CBB&amp;quot;,&amp;quot;CBSD&amp;quot;, &amp;quot;CGM&amp;quot;, &amp;quot;CMD&amp;quot;, &amp;quot;Healthy&amp;quot;),
-                                              target_size = c(448, 448),
-                                              batch_size=16)
-
-validation_generator &amp;lt;- flow_images_from_dataframe(dataframe = val_labels, 
-                                              directory = image_path,
-                                              class_mode = &amp;quot;other&amp;quot;,
-                                              x_col = &amp;quot;image_id&amp;quot;,
-                                              y_col = c(&amp;quot;CBB&amp;quot;,&amp;quot;CBSD&amp;quot;, &amp;quot;CGM&amp;quot;, &amp;quot;CMD&amp;quot;, &amp;quot;Healthy&amp;quot;),
-                                              target_size = c(448, 448),
-                                              batch_size=16)&lt;/code&gt;&lt;/pre&gt;
-&lt;h3 id="about-tf-hub"&gt;About tf hub&lt;/h3&gt;
-&lt;p&gt;I tried a lot of things with tf hub before using the application wrappers. The application wrappers is handy, tf hub is not (for this task.) That will be the subject of an other blog post I think.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;conv_base&amp;lt;-keras::application_efficientnet_b0(weights = &amp;quot;imagenet&amp;quot;, include_top = FALSE, input_shape = c(448, 448, 3))
-
-freeze_weights(conv_base)
-
-model &amp;lt;- keras_model_sequential() %&amp;gt;%
-    conv_base %&amp;gt;% 
-    layer_global_max_pooling_2d() %&amp;gt;% 
-    layer_batch_normalization() %&amp;gt;% 
-    layer_dropout(rate=0.5) %&amp;gt;%
-    layer_dense(units=5, activation=&amp;quot;softmax&amp;quot;)
-
-summary(model)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;Model: &amp;quot;sequential_1&amp;quot;
-______________________________________________________________________
-Layer (type)                   Output Shape                Param #    
-======================================================================
-efficientnetb0 (Functional)    (None, 14, 14, 1280)        4049571    
-______________________________________________________________________
-global_max_pooling2d_1 (Global (None, 1280)                0          
-______________________________________________________________________
-batch_normalization_1 (BatchNo (None, 1280)                5120       
-______________________________________________________________________
-dropout_1 (Dropout)            (None, 1280)                0          
-______________________________________________________________________
-dense_1 (Dense)                (None, 5)                   6405       
-======================================================================
-Total params: 4,061,096
-Trainable params: 8,965
-Non-trainable params: 4,052,131
-______________________________________________________________________&lt;/code&gt;&lt;/pre&gt;
-&lt;h2 id="cyclical-learning-rate"&gt;Cyclical learning rate&lt;/h2&gt;
-&lt;p&gt;A lot of the code below came from the blog &lt;a href="http://thecooldata.com/"&gt;“the cool data”&lt;/a&gt;. The idea to have a tail and the notion of annihilation of gradient originate from &lt;a href="https://sgugger.github.io/the-1cycle-policy.html"&gt;this blog post on The 1cycle policy&lt;/a&gt; and is quite similar to the one used in fastai. The big difference is that I do not want to add an other vector of an even lower learning rate at the end of the one generated by the function Cyclic_lr, it would force me to take it into account and create an other number of iteration for the compilation of the model. I prefer the approach of dividing more and more the last element of the cycle.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;callback_lr_init &amp;lt;- function(logs){
-      iter &amp;lt;&amp;lt;- 0
-      lr_hist &amp;lt;&amp;lt;- c()
-      iter_hist &amp;lt;&amp;lt;- c()
-}
-callback_lr_set &amp;lt;- function(batch, logs){
-      iter &amp;lt;&amp;lt;- iter + 1
-      LR &amp;lt;- l_rate[iter] # if number of iterations &amp;gt; l_rate values, make LR constant to last value
-      if(is.na(LR)) LR &amp;lt;- l_rate[length(l_rate)]
-      k_set_value(model$optimizer$lr, LR)
-}
-
-callback_lr &amp;lt;- callback_lambda(on_train_begin=callback_lr_init, on_batch_begin=callback_lr_set)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;####################
-Cyclic_LR &amp;lt;- function(iteration=1:32000, base_lr=1e-5, max_lr=1e-3, step_size=2000, mode=&amp;#39;triangular&amp;#39;, gamma=1, scale_fn=NULL, scale_mode=&amp;#39;cycle&amp;#39;){ # translated from python to R, original at: https://github.com/bckenstler/CLR/blob/master/clr_callback.py # This callback implements a cyclical learning rate policy (CLR). # The method cycles the learning rate between two boundaries with # some constant frequency, as detailed in this paper (https://arxiv.org/abs/1506.01186). # The amplitude of the cycle can be scaled on a per-iteration or per-cycle basis. # This class has three built-in policies, as put forth in the paper. # - &amp;quot;triangular&amp;quot;: A basic triangular cycle w/ no amplitude scaling. # - &amp;quot;triangular2&amp;quot;: A basic triangular cycle that scales initial amplitude by half each cycle. # - &amp;quot;exp_range&amp;quot;: A cycle that scales initial amplitude by gamma**(cycle iterations) at each cycle iteration. # - &amp;quot;sinus&amp;quot;: A sinusoidal form cycle # # Example # &amp;gt; clr &amp;lt;- Cyclic_LR(base_lr=0.001, max_lr=0.006, step_size=2000, mode=&amp;#39;triangular&amp;#39;, num_iterations=20000) # &amp;gt; plot(clr, cex=0.2)
- 
-      # Class also supports custom scaling functions with function output max value of 1:
-      # &amp;gt; clr_fn &amp;lt;- function(x) 1/x # &amp;gt; clr &amp;lt;- Cyclic_LR(base_lr=0.001, max_lr=0.006, step_size=400, # scale_fn=clr_fn, scale_mode=&amp;#39;cycle&amp;#39;, num_iterations=20000) # &amp;gt; plot(clr, cex=0.2)
- 
-      # # Arguments
-      #   iteration:
-      #       if is a number:
-      #           id of the iteration where: max iteration = epochs * (samples/batch)
-      #       if &amp;quot;iteration&amp;quot; is a vector i.e.: iteration=1:10000:
-      #           returns the whole sequence of lr as a vector
-      #   base_lr: initial learning rate which is the
-      #       lower boundary in the cycle.
-      #   max_lr: upper boundary in the cycle. Functionally,
-      #       it defines the cycle amplitude (max_lr - base_lr).
-      #       The lr at any cycle is the sum of base_lr
-      #       and some scaling of the amplitude; therefore 
-      #       max_lr may not actually be reached depending on
-      #       scaling function.
-      #   step_size: number of training iterations per
-      #       half cycle. Authors suggest setting step_size
-      #       2-8 x training iterations in epoch.
-      #   mode: one of {triangular, triangular2, exp_range, sinus}.
-      #       Default &amp;#39;triangular&amp;#39;.
-      #       Values correspond to policies detailed above.
-      #       If scale_fn is not None, this argument is ignored.
-      #   gamma: constant in &amp;#39;exp_range&amp;#39; scaling function:
-      #       gamma**(cycle iterations)
-      #   scale_fn: Custom scaling policy defined by a single
-      #       argument lambda function, where 
-      #       0 &amp;lt;= scale_fn(x) &amp;lt;= 1 for all x &amp;gt;= 0.
-      #       mode paramater is ignored 
-      #   scale_mode: {&amp;#39;cycle&amp;#39;, &amp;#39;iterations&amp;#39;}.
-      #       Defines whether scale_fn is evaluated on 
-      #       cycle number or cycle iterations (training
-      #       iterations since start of cycle). Default is &amp;#39;cycle&amp;#39;.
- 
-      ########
-      if(is.null(scale_fn)==TRUE){
-            if(mode==&amp;#39;triangular&amp;#39;){scale_fn &amp;lt;- function(x) 1; scale_mode &amp;lt;- &amp;#39;cycle&amp;#39;;}
-            if(mode==&amp;#39;triangular2&amp;#39;){scale_fn &amp;lt;- function(x) 1/(2^(x-1)); scale_mode &amp;lt;- &amp;#39;cycle&amp;#39;;}
-            if(mode==&amp;#39;exp_range&amp;#39;){scale_fn &amp;lt;- function(x) gamma^(x); scale_mode &amp;lt;- &amp;#39;iterations&amp;#39;;}
-            if(mode==&amp;#39;sinus&amp;#39;){scale_fn &amp;lt;- function(x) 0.5*(1+sin(x*pi/2)); scale_mode &amp;lt;- &amp;#39;cycle&amp;#39;;}
-            if(mode==&amp;#39;halfcosine&amp;#39;){scale_fn &amp;lt;- function(x) 0.5*(1+cos(x*pi)^2); scale_mode &amp;lt;- &amp;#39;cycle&amp;#39;;}
-      }
-      lr &amp;lt;- list()
-      if(is.vector(iteration)==TRUE){
-            for(iter in iteration){
-                  cycle &amp;lt;- floor(1 + (iter / (2*step_size)))
-                  x2 &amp;lt;- abs(iter/step_size-2 * cycle+1)
-                  if(scale_mode==&amp;#39;cycle&amp;#39;) x &amp;lt;- cycle
-                  if(scale_mode==&amp;#39;iterations&amp;#39;) x &amp;lt;- iter
-                  lr[[iter]] &amp;lt;- base_lr + (max_lr-base_lr) * max(0,(1-x2)) * scale_fn(x)
-            }
-      }
-      lr &amp;lt;- do.call(&amp;quot;rbind&amp;quot;,lr)
-      return(as.vector(lr))
-}&lt;/code&gt;&lt;/pre&gt;
-&lt;h3 id="the-tail"&gt;The tail&lt;/h3&gt;
-&lt;p&gt;Okay, what is going on here ? Simple speaking I want the last steps to go several order of magnitude under the minimal learning rate, in a similar fashion of the fast.ai implementation. The most elegant way (without adding an other vector at the end) to do this is to divide the learning rate of the last steps by a number growing exponentially (to avoid a cut in the learning rate curve by dividing the number suddenly by 10). So we have a nice “tail” (see graphs below).&lt;/p&gt;
-&lt;p&gt;Oh there is no specific justifications for the exponent number. Just trial and error and “looking nice” approach.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;n=200
-nb_epochs=10&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;tail &amp;lt;- 30 #annhilation of the gradient
-i&amp;lt;-1:tail
-l_rate_div&amp;lt;-1.1*(1.2^i) 
-plot(l_rate_div, type=&amp;quot;b&amp;quot;, pch=16, cex=0.1, xlab=&amp;quot;iteration&amp;quot;, ylab=&amp;quot;learning rate dividor&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file10894b7abd0d_files/figure-html/unnamed-chunk-25-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;l_rate_cyclical &amp;lt;- Cyclic_LR(iteration=1:n, base_lr=1e-7, max_lr=1e-3, step_size=floor(n/2),
-                        mode=&amp;#39;triangular&amp;#39;, gamma=1, scale_fn=NULL, scale_mode=&amp;#39;cycle&amp;#39;)
-
-start_tail &amp;lt;-length(l_rate_cyclical)-tail
-end_tail &amp;lt;- length(l_rate_cyclical)
-l_rate_cyclical[start_tail:end_tail] &amp;lt;- l_rate_cyclical[start_tail:end_tail]/l_rate_div&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;l_rate &amp;lt;- rep(l_rate_cyclical, nb_epochs)
-
-plot(l_rate_cyclical, type=&amp;quot;b&amp;quot;, pch=16, xlab=&amp;quot;iteration&amp;quot;, cex=0.2, ylab=&amp;quot;learning rate&amp;quot;, col=&amp;quot;grey50&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file10894b7abd0d_files/figure-html/unnamed-chunk-27-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;plot(l_rate, type=&amp;quot;b&amp;quot;, pch=16, xlab=&amp;quot;iteration&amp;quot;, cex=0.2, ylab=&amp;quot;learning rate&amp;quot;, col=&amp;quot;grey50&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file10894b7abd0d_files/figure-html/unnamed-chunk-27-2.png" width="672" /&gt;&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;model %&amp;gt;% compile(
-    optimizer=optimizer_rmsprop(lr=1e-5),
-    loss=&amp;quot;categorical_crossentropy&amp;quot;,
-    metrics = &amp;quot;categorical_accuracy&amp;quot;
-)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;You can still add other callback, the following code came from the tutorial of Keras “tutorial_save_and_restore”. Commented to lighten the blog post.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;# checkpoint_dir &amp;lt;- &amp;quot;checkpoints&amp;quot;
-# unlink(checkpoint_dir, recursive = TRUE)
-# dir.create(checkpoint_dir)
-# filepath &amp;lt;- file.path(checkpoint_dir, &amp;quot;eff_net_weights.{epoch:02d}.hdf5&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;# check_point_callback &amp;lt;- callback_model_checkpoint(
-#   filepath = filepath,
-#   save_weights_only = TRUE,
-#   save_best_only = TRUE
-# )&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;#callback_list&amp;lt;-list(callback_lr, check_point_callback ) #callback to update lr
-callback_list&amp;lt;-list(callback_lr)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;history &amp;lt;- model %&amp;gt;% fit_generator(
-    train_generator,
-    steps_per_epoch=n,
-    epochs = nb_epochs,
-    callbacks = callback_list, #callback to update cylic lr
-    validation_data = validation_generator,
-    validation_step=40
-)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;plot(history)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file10894b7abd0d_files/figure-html/unnamed-chunk-33-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;h1 id="fine-tuning"&gt;Fine tuning&lt;/h1&gt;
-&lt;p&gt;Here the steps, are, basically the same, you you want to divide the maximum learning rate by 5 or 10, since you unfreeze the basal part of the network.&lt;/p&gt;
-&lt;pre class="r"&gt;&lt;code&gt;unfreeze_weights(conv_base, from = &amp;#39;block5a_expand_conv&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;summary(model)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre&gt;&lt;code&gt;Model: &amp;quot;sequential_1&amp;quot;
-______________________________________________________________________
-Layer (type)                   Output Shape                Param #    
-======================================================================
-efficientnetb0 (Functional)    (None, 14, 14, 1280)        4049571    
-______________________________________________________________________
-global_max_pooling2d_1 (Global (None, 1280)                0          
-______________________________________________________________________
-batch_normalization_1 (BatchNo (None, 1280)                5120       
-______________________________________________________________________
-dropout_1 (Dropout)            (None, 1280)                0          
-______________________________________________________________________
-dense_1 (Dense)                (None, 5)                   6405       
-======================================================================
-Total params: 4,061,096
-Trainable params: 3,707,853
-Non-trainable params: 353,243
-______________________________________________________________________&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;nb_epochs&amp;lt;-20&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;l_rate_cyclical &amp;lt;- Cyclic_LR(iteration=1:n, base_lr=1e-7, max_lr=(1e-3/5), step_size=floor(n/2),
-                        mode=&amp;#39;triangular&amp;#39;, gamma=1, scale_fn=NULL, scale_mode=&amp;#39;cycle&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;start_tail &amp;lt;-length(l_rate_cyclical)-tail
-end_tail &amp;lt;- length(l_rate_cyclical)
-l_rate_cyclical[start_tail:end_tail] &amp;lt;- l_rate_cyclical[start_tail:end_tail]/l_rate_div
-
-l_rate &amp;lt;- rep(l_rate_cyclical, nb_epochs)
-
-#plot(l_rate, type=&amp;quot;b&amp;quot;, pch=16, xlab=&amp;quot;iteration&amp;quot;, cex=0.2, ylab=&amp;quot;learning rate&amp;quot;, col=&amp;quot;grey50&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;model %&amp;gt;% compile(
-    optimizer=optimizer_rmsprop(lr=1e-5),
-    loss=&amp;quot;categorical_crossentropy&amp;quot;,
-    metrics = &amp;quot;categorical_accuracy&amp;quot;
-)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;callback_list&amp;lt;-list(callback_lr)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;history &amp;lt;- model %&amp;gt;% fit_generator(
-    train_generator,
-    steps_per_epoch=n,
-    epochs = nb_epochs,
-    callbacks = callback_list, #callback to update cylic lr
-    validation_data = validation_generator,
-    validation_step=40
-)&lt;/code&gt;&lt;/pre&gt;
-&lt;pre class="r"&gt;&lt;code&gt;plot(history)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src="file10894b7abd0d_files/figure-html/unnamed-chunk-42-1.png" width="672" /&gt;&lt;/p&gt;
-&lt;h3 id="conclusion"&gt;Conclusion&lt;/h3&gt;
-&lt;p&gt;And this is how you (can) do cyclical learning rate with R.&lt;/p&gt;
-&lt;p&gt;Looking at this blog post, I realize that I don’t go really deep into the details on how I construct the network or how I choose learning rate parameters. It is more a general deep learning background knowledge, and habits took from fastai, but I can go back to this notions in others blog posts. Usually, you can cycle around 10 ^-3 for this type of task to train the head of the network, but the beauty of cyclical learning rate is that you can test quickly differents intervals (since it converges faster) without worrying too much about it, since you will probably oscillate around the good(s) solution(s). You can also ask questions in the comments sections.&lt;/p&gt;
-&lt;p&gt;Remember, I am not an expert. I use books and complains when there is not the beginning of a tutorial for what I want to do. Reason why I wrote this blog.&lt;/p&gt;
+&lt;div class="figure"&gt;
+&lt;img src="https://casualr.netlify.app//posts/WWI_viewer/1672913731402.jpeg" alt="" /&gt;
+&lt;p class="caption"&gt;wwi_viewer&lt;/p&gt;
+&lt;/div&gt;
+&lt;h1 id="wwi-viewer"&gt;WWI VieweR&lt;/h1&gt;
+&lt;p&gt;Hi everyone ! Long time no see. I recently undertook to validate the
+capstone project of the &lt;a
+href="https://www.coursera.org/specializations/jhu-data-visualization-dashboarding-with-r"&gt;Data
+Visualization specialization of the Johns Hopkins University on
+Coursera&lt;/a&gt;, with something that was probably a slight overkill for the
+requirements. Beeing without any idea around the 10th November, I came
+up with the idea of visualizing the battles of the first world war the
+11th.&lt;/p&gt;
+&lt;p&gt;The app is hosted here : &lt;a
+href="https://cdk296.shinyapps.io/WWI_VieweR/"
+class="uri"&gt;https://cdk296.shinyapps.io/WWI_VieweR/&lt;/a&gt; and the code of
+the application and of the scrapping is accessible &lt;a
+href="https://github.com/Cdk29/Capstone_project"&gt;on this github
+repo.&lt;/a&gt; The structure of the repo is somewhat messy because of the
+structuring of the course in different weeks.&lt;/p&gt;
+&lt;p&gt;I ended up carrying this project quite longer than I expected (cf the
+date of this blog post). I also learnt some things that I did not
+expected to learn, such as how to query Dbpedia using SPARQL with the
+help of ten years old R-bloggers posts. I discovered some battles and
+fronts. Also, even if you know that the war had a huge impacts on the
+societies of the time, plotting the percentage of death per population
+certainly help to grasp what this could have means for the
+contemporaries.&lt;/p&gt;
+&lt;p&gt;I also discovered that, when you are French and start by plotting the
+battles of the western front, the current map of the world provided by
+leaflet works very well, since boundaries did not changed since one
+century. When you start plotting the battles of other fronts, such as
+the middle east, it became quickly out-of-context. I remember that T.E.
+Lawrence mentioned Mesopotamia and probably Persia in his books,
+countries you will have trouble to find now on a map.&lt;/p&gt;
+&lt;h2 id="data"&gt;Data:&lt;/h2&gt;
+&lt;p&gt;I originally started with the &lt;a
+href="https://github.com/jrnold/CDB90"&gt;CDB90&lt;/a&gt; dataset, planning to
+recover the latitude and longitude for each battle from Dbpedia. But the
+URLs links inside the battles.csv where somewhat too old, and query
+using them were not working.&lt;/p&gt;
+&lt;p&gt;I ended up querying directly dbpedia, using the code in the file
+Week_2.Rmd and scrapping_all_ww1.Rmd (the file is named Week_2 because
+of the segmentation of the capstone project course on Coursera)/&lt;/p&gt;
+&lt;p&gt;See &lt;a href="https://github.com/Cdk29/Capstone_project"&gt;the github
+repo.&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id="some-data-limitation"&gt;Some Data limitation&lt;/h2&gt;
+&lt;p&gt;Facts in history are not that objective or simple. For exemple, is a
+battle a victory or not ? Take for example the &lt;a
+href="https://en.wikipedia.org/wiki/Battle_of_Jutland"&gt;Battle of
+Jutland&lt;/a&gt;, both camps claimed victory, because they were pursuing
+differents objectives.&lt;/p&gt;
+&lt;p&gt;Also, some results of battle may vary depending the language used for
+scrapping &lt;em&gt;(for the second world war I remember that the protagonist
+of the liberation of Rome is somewhat different based on the langage
+consulted ;p)&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Regarding the scrapping, I am pretty sure some battles are missings,
+for exemple in the eastern front of the war. Not sure why.&lt;/p&gt;
+&lt;p&gt;Also, the map where I mapped the battles is a contemporary map. Too
+bad there is not a world map of 1914 accessible on Leafleat.&lt;/p&gt;
 &lt;pre class="r distill-force-highlighting-css"&gt;&lt;code&gt;&lt;/code&gt;&lt;/pre&gt;</description>
-      <distill:md5>eb67a9d12e045344722bf107b081acb8</distill:md5>
-      <guid>https://casualr.netlify.app/posts/Cyclical_lr_post</guid>
-      <pubDate>Tue, 29 Jun 2021 00:00:00 +0000</pubDate>
-      <media:content url="https://casualr.netlify.app/posts/Cyclical_lr_post/distill-preview.png" medium="image" type="image/png" width="1248" height="768"/>
+      <distill:md5>333f7289a826978def36233ceb8f7680</distill:md5>
+      <guid>https://casualr.netlify.app/posts/WWI_viewer</guid>
+      <pubDate>Mon, 23 Jan 2023 00:00:00 +0000</pubDate>
     </item>
   </channel>
 </rss>
